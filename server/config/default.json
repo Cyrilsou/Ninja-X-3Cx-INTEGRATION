@@ -1,0 +1,60 @@
+{
+  "server": {
+    "port": 3000,
+    "host": "0.0.0.0"
+  },
+  "redis": {
+    "url": "redis://localhost:6379",
+    "prefix": "3cx-ninja:"
+  },
+  "database": {
+    "dialect": "sqlite",
+    "storage": "./data/database.sqlite",
+    "logging": false
+  },
+  "whisper": {
+    "model": "base",
+    "language": "fr",
+    "device": "cpu",
+    "threads": 4,
+    "processors": 1,
+    "translate": false,
+    "outputFormat": "json"
+  },
+  "transcription": {
+    "chunkDuration": 30000,
+    "maxConcurrent": 4,
+    "timeout": 300000,
+    "tempDir": "./data/temp"
+  },
+  "ninja": {
+    "apiUrl": "https://app.ninjarmm.com/api/v2",
+    "boardId": 5,
+    "defaultPriority": 2,
+    "defaultStatus": 1
+  },
+  "security": {
+    "apiKey": "change-this-in-production",
+    "corsOrigins": ["http://localhost:3001", "http://localhost:3002"],
+    "rateLimit": {
+      "windowMs": 60000,
+      "max": 100
+    }
+  },
+  "audio": {
+    "sampleRate": 16000,
+    "channels": 1,
+    "encoding": "pcm16"
+  },
+  "analysis": {
+    "provider": "local",
+    "minConfidence": 0.7,
+    "keywordExtraction": true,
+    "sentimentAnalysis": true
+  },
+  "cleanup": {
+    "enabled": true,
+    "maxAge": 86400000,
+    "interval": 3600000
+  }
+}
