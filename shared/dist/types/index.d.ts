@@ -10,6 +10,7 @@ export interface Call3CX {
     endTime?: Date;
     duration?: number;
     status: 'ringing' | 'active' | 'completed' | 'missed';
+    recordingUrl?: string;
 }
 export interface Transcription {
     callId: string;
@@ -42,6 +43,7 @@ export interface CallAnalysis {
     actionItems: string[];
     category: string;
     priority: 'low' | 'normal' | 'high' | 'urgent';
+    recordingUrl?: string;
     suggestedTitle: string;
     keywords: string[];
     confidence: number;
@@ -64,6 +66,9 @@ export interface Agent {
     name: string;
     status: 'online' | 'busy' | 'offline';
     currentCall?: Call3CX;
+    version?: string;
+    ipAddress?: string;
+    lastSeen?: Date;
 }
 export interface AudioChunk {
     callId: string;
