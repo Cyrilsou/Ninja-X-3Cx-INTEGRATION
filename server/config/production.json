@@ -10,8 +10,51 @@
   },
   "whisper": {
     "model": "base",
+    "modelPath": "/opt/3cx-ninja-realtime/venv/lib/python3.12/site-packages/whisper/models",
+    "pythonPath": "/opt/3cx-ninja-realtime/venv/bin/python",
+    "device": "cpu",
+    "computeType": "int8",
+    "threads": 4,
     "language": "fr",
+    "task": "transcribe",
+    "vadFilter": true,
+    "wordTimestamps": true,
     "maxConcurrent": 4
+  },
+  "transcription": {
+    "maxConcurrent": 2,
+    "timeout": 300000,
+    "maxRetries": 3,
+    "retryDelay": 5000,
+    "chunkDuration": 30
+  },
+  "audio": {
+    "format": "wav",
+    "sampleRate": 16000,
+    "channels": 1,
+    "bitDepth": 16,
+    "maxDuration": 1800,
+    "maxSize": 104857600,
+    "tempDir": "/tmp/3cx-ninja"
+  },
+  "database": {
+    "dialect": "sqlite",
+    "storage": "/var/lib/3cx-ninja/database.sqlite",
+    "logging": false
+  },
+  "ffmpeg": {
+    "path": "ffmpeg",
+    "timeout": 30000
+  },
+  "cache": {
+    "ttl": 3600,
+    "checkPeriod": 600,
+    "maxKeys": 1000
+  },
+  "webhook": {
+    "timeout": 10000,
+    "maxRetries": 3,
+    "retryDelay": 1000
   },
   "3cx": {
     "webhook": {

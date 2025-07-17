@@ -196,6 +196,29 @@ export class RedisService {
       failed: 0
     };
   }
+
+  async getConnectedAgents(): Promise<Agent[]> {
+    const pattern = `${this.prefix}agent:*`;
+    const keys = await this.client.keys(pattern);
+    const agents: Agent[] = [];
+    
+    for (const key of keys) {
+      const data = await this.client.get(key);
+      if (data) {
+        try {
+          const agent = JSON.parse(data) as Agent;
+          // Considérer un agent comme connecté s'il a été mis à jour dans les 5 dernières minutes
+          if (agent.status === 'online') {
+            agents.push(agent);
+          }
+        } catch (error) {
+          this.logger.error(`Error parsing agent data for key ${key}:`, error);
+        }
+      }
+    }
+    
+    return agents;
+  }
 }
 
 export default RedisService;

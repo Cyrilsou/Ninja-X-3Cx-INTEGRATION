@@ -90,8 +90,8 @@ export async function getDashboardStats(): Promise<DashboardStats> {
     let processing = 0;
     if (redis) {
       const queueStats = await redis.getQueueStats();
-      inQueue = queueStats.waiting;
-      processing = queueStats.active;
+      inQueue = queueStats.size || 0;
+      processing = queueStats.processing || 0;
     }
 
     const completedTranscriptions = await TranscriptionModel.count({ where: { status: 'completed' } });

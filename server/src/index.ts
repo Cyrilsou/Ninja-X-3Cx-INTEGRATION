@@ -22,6 +22,7 @@ import { createInstallRouter } from './api/routes/install';
 import { setRedisService } from './services/dashboard-service';
 import authRoutes from './routes/auth';
 import { ninjaAuth } from './services/ninja-auth';
+import BroadcastService from './services/broadcast-service';
 
 // Charger les variables d'environnement
 dotenv.config();
@@ -34,6 +35,7 @@ const httpServer = createServer(app);
 const redis = new RedisService();
 const transcriptionQueue = new TranscriptionQueue();
 const socketManager = new SocketManager(httpServer, redis, transcriptionQueue);
+const broadcastService = new BroadcastService();
 
 // Injecter le socket manager dans la queue
 transcriptionQueue.setSocketManager(socketManager);
@@ -202,6 +204,12 @@ async function startServer() {
       logger.info(`Server running on http://${host}:${port}`);
       logger.info(`Environment: ${process.env.NODE_ENV || 'development'}`);
       logger.info(`Whisper model: ${config.get('whisper.model')}`);
+      
+      // Démarrer le service de broadcast UDP
+      if (process.env.ENABLE_BROADCAST === 'true') {
+        broadcastService.start();
+        logger.info(`UDP broadcast service started on port ${process.env.DISCOVERY_PORT || '53434'}`);
+      }
     });
     
   } catch (error) {
@@ -217,6 +225,10 @@ process.on('SIGTERM', async () => {
   httpServer.close(() => {
     logger.info('HTTP server closed');
   });
+  
+  if (process.env.ENABLE_BROADCAST === 'true') {
+    broadcastService.stop();
+  }
   
   await redis.disconnect();
   process.exit(0);
