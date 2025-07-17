@@ -129,12 +129,12 @@ router.get('/quick-install', (req: Request, res: Response) => {
                     linux: `curl -sSL ${config.serverUrl}/api/install/install-agent.sh | bash`,
                     macos: `curl -sSL ${config.serverUrl}/api/install/install-agent.sh | bash`
                 };
-                command = commandObj;
+                command = JSON.stringify(commandObj);
         }
         
         res.json({
             serverUrl: config.serverUrl,
-            commands: typeof command === 'string' ? { [platform?.toString() || 'auto']: command } : command,
+            commands: platform && typeof command === 'string' ? { [platform.toString()]: command } : JSON.parse(command),
             instructions: {
                 windows: 'Exécuter en tant qu\'administrateur dans PowerShell',
                 linux: 'Exécuter en tant qu\'utilisateur normal',

@@ -624,10 +624,79 @@ EOF
     
     # Corriger install-api.ts
     if [[ -f "routes/install-api.ts" ]]; then
-        # Corriger le type de command
-        sed -i '/command = {/,/};/s/command = {/const commandObj = {/' routes/install-api.ts
-        sed -i 's/commands: typeof command/commands: typeof commandObj/g' routes/install-api.ts
-        sed -i "s/{ \[platform || 'auto'\]: command }/{ [platform?.toString() || 'auto']: command }/g" routes/install-api.ts
+        # Nouvelle correction pour install-api.ts
+        # Remplacer la ligne 132 et 137
+        sed -i '132s/command = commandObj;/command = JSON.stringify(commandObj);/' routes/install-api.ts
+        sed -i '137s/commands: typeof commandObj === '\''string'\'' ? { \[platform?.toString() || '\''auto'\''\]: command } : command,/commands: platform && typeof command === '\''string'\'' ? { [platform.toString()]: command } : JSON.parse(command),/' routes/install-api.ts
+    fi
+    
+    # Corriger threecx-auth.ts et ninja-auth.ts
+    if [[ -f "middlewares/threecx-auth.ts" ]]; then
+        sed -i 's/cache\.del(/cache.delete(/g' middlewares/threecx-auth.ts
+        sed -i 's/cache\.setex(/cache.set(/g' middlewares/threecx-auth.ts
+    fi
+    
+    if [[ -f "middlewares/ninja-auth.ts" ]]; then
+        sed -i 's/cache\.del(/cache.delete(/g' middlewares/ninja-auth.ts
+        sed -i 's/cache\.setex(/cache.set(/g' middlewares/ninja-auth.ts
+    fi
+    
+    # Corriger redis-service.ts pour rendre le client public
+    if [[ -f "services/redis-service.ts" ]]; then
+        sed -i 's/private client: RedisClientType;/public client: RedisClientType;/g' services/redis-service.ts
+    fi
+    
+    # Créer les fichiers manquants du dashboard
+    if [[ ! -f "$INSTALL_DIR/dashboard/src/index.css" ]]; then
+        mkdir -p "$INSTALL_DIR/dashboard/src"
+        cat > "$INSTALL_DIR/dashboard/src/index.css" << 'EOF'
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+EOF
+    fi
+    
+    if [[ ! -f "$INSTALL_DIR/dashboard/src/main.tsx" ]]; then
+        cat > "$INSTALL_DIR/dashboard/src/main.tsx" << 'EOF'
+import React from 'react'
+import ReactDOM from 'react-dom/client'
+import './index.css'
+
+const App = () => {
+  return (
+    <div className="min-h-screen bg-gray-100 flex items-center justify-center">
+      <div className="text-center">
+        <h1 className="text-4xl font-bold text-gray-800 mb-4">3CX-Ninja Dashboard</h1>
+        <p className="text-gray-600">Interface en cours de construction...</p>
+      </div>
+    </div>
+  )
+}
+
+ReactDOM.createRoot(document.getElementById('root')!).render(
+  <React.StrictMode>
+    <App />
+  </React.StrictMode>,
+)
+EOF
+    fi
+    
+    if [[ ! -f "$INSTALL_DIR/dashboard/index.html" ]]; then
+        cat > "$INSTALL_DIR/dashboard/index.html" << 'EOF'
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>3CX-Ninja Dashboard</title>
+    <link rel="icon" type="image/svg+xml" href="/vite.svg">
+</head>
+<body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+</body>
+</html>
+EOF
     fi
     
     # 12. Essayer de construire l'application
