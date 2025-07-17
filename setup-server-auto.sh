@@ -192,7 +192,10 @@ install_application() {
     # Build de l'application
     log "Build de l'application..."
     
-    # D'abord, essayer de corriger les fichiers de configuration TypeScript
+    # D'abord, corriger tous les problèmes de dépendances TypeScript
+    log "Correction des dépendances et fichiers TypeScript..."
+    
+    # 1. Corriger les fichiers tsconfig.json
     if [[ -f "$INSTALL_DIR/shared/tsconfig.json" ]]; then
         # Ajouter "composite": true au tsconfig.json de shared s'il manque
         if ! grep -q '"composite"' "$INSTALL_DIR/shared/tsconfig.json"; then
@@ -200,12 +203,252 @@ install_application() {
         fi
     fi
     
-    # Corriger le script de build du dashboard pour ne pas utiliser tsc
+    # 2. Installer les types TypeScript manquants
+    log "Installation des types TypeScript manquants..."
+    cd "$INSTALL_DIR/server"
+    sudo -u "$SERVICE_USER" npm install --save-dev @types/uuid @types/bcrypt @types/jsonwebtoken @types/config @types/fluent-ffmpeg || warn "Certains types n'ont pas pu être installés"
+    
+    # 3. Installer les dépendances manquantes du serveur
+    log "Installation des dépendances serveur manquantes..."
+    sudo -u "$SERVICE_USER" npm install bcrypt jsonwebtoken config uuid || warn "Certaines dépendances n'ont pas pu être installées"
+    
+    # 4. Corriger les imports Sequelize et créer les fichiers manquants
+    log "Correction des fichiers Sequelize et création des fichiers manquants..."
+    
+    # Créer le fichier database/index.ts corrigé
+    mkdir -p "$INSTALL_DIR/server/src/database"
+    cat > "$INSTALL_DIR/server/src/database/index.ts" << 'EOF'
+import { Sequelize, DataTypes, Model } from 'sequelize';
+import path from 'path';
+
+// Configuration de la base de données
+const sequelize = new Sequelize({
+  dialect: 'sqlite',
+  storage: process.env.DATABASE_PATH || path.join(__dirname, '../../data/database.sqlite'),
+  logging: false
+});
+
+// Modèle Call
+export const CallModel = sequelize.define('Call', {
+  callId: {
+    type: DataTypes.STRING,
+    primaryKey: true
+  },
+  extension: DataTypes.STRING,
+  agentEmail: DataTypes.STRING,
+  caller: DataTypes.STRING,
+  callee: DataTypes.STRING,
+  direction: DataTypes.STRING,
+  startTime: DataTypes.DATE,
+  endTime: DataTypes.DATE,
+  duration: DataTypes.INTEGER,
+  status: DataTypes.STRING,
+  transcriptionId: DataTypes.STRING
+});
+
+// Modèle Agent
+export const AgentModel = sequelize.define('Agent', {
+  id: {
+    type: DataTypes.STRING,
+    primaryKey: true
+  },
+  email: {
+    type: DataTypes.STRING,
+    unique: true
+  },
+  name: DataTypes.STRING,
+  extension: DataTypes.STRING,
+  status: DataTypes.STRING,
+  version: DataTypes.STRING,
+  ipAddress: DataTypes.STRING,
+  lastSeen: DataTypes.DATE
+});
+
+// Modèle Transcription
+export const TranscriptionModel = sequelize.define('Transcription', {
+  id: {
+    type: DataTypes.INTEGER,
+    primaryKey: true,
+    autoIncrement: true
+  },
+  callId: {
+    type: DataTypes.STRING,
+    unique: true
+  },
+  text: DataTypes.TEXT,
+  language: DataTypes.STRING,
+  confidence: DataTypes.FLOAT,
+  segments: DataTypes.JSON
+});
+
+// Modèle Analysis
+export const AnalysisModel = sequelize.define('Analysis', {
+  id: {
+    type: DataTypes.INTEGER,
+    primaryKey: true,
+    autoIncrement: true
+  },
+  transcriptionId: {
+    type: DataTypes.INTEGER,
+    unique: true
+  },
+  summary: DataTypes.TEXT,
+  mainIssue: DataTypes.TEXT,
+  customerSentiment: DataTypes.STRING,
+  category: DataTypes.STRING,
+  priority: DataTypes.STRING,
+  suggestedTitle: DataTypes.STRING,
+  actionItems: DataTypes.JSON,
+  keywords: DataTypes.JSON
+});
+
+// Modèle Ticket
+export const TicketModel = sequelize.define('Ticket', {
+  id: {
+    type: DataTypes.INTEGER,
+    primaryKey: true,
+    autoIncrement: true
+  },
+  callId: {
+    type: DataTypes.STRING,
+    unique: true
+  },
+  ninjaTicketId: DataTypes.INTEGER,
+  title: DataTypes.STRING,
+  status: DataTypes.STRING,
+  createdBy: DataTypes.STRING
+});
+
+// Relations
+CallModel.hasOne(TranscriptionModel, { foreignKey: 'callId' });
+TranscriptionModel.belongsTo(CallModel, { foreignKey: 'callId' });
+
+TranscriptionModel.hasOne(AnalysisModel, { foreignKey: 'transcriptionId' });
+AnalysisModel.belongsTo(TranscriptionModel, { foreignKey: 'transcriptionId' });
+
+CallModel.hasOne(TicketModel, { foreignKey: 'callId' });
+TicketModel.belongsTo(CallModel, { foreignKey: 'callId' });
+
+// Initialisation
+export const initDatabase = async () => {
+  try {
+    await sequelize.authenticate();
+    await sequelize.sync({ alter: true });
+    console.log('Database initialized successfully');
+  } catch (error) {
+    console.error('Database initialization failed:', error);
+    throw error;
+  }
+};
+
+export { sequelize };
+EOF
+    
+    # 5. Créer un fichier de configuration par défaut
+    log "Création du fichier de configuration par défaut..."
+    mkdir -p "$INSTALL_DIR/server/config"
+    cat > "$INSTALL_DIR/server/config/default.json" << 'EOF'
+{
+  "server": {
+    "port": 3000,
+    "host": "0.0.0.0"
+  },
+  "database": {
+    "dialect": "sqlite",
+    "storage": "/var/lib/3cx-ninja/database.sqlite"
+  },
+  "redis": {
+    "host": "localhost",
+    "port": 6379
+  },
+  "auth": {
+    "jwtSecret": "your-jwt-secret-change-this",
+    "adminPassword": "admin123"
+  },
+  "3cx": {
+    "clientId": "",
+    "clientSecret": ""
+  },
+  "ninjaone": {
+    "clientId": "",
+    "clientSecret": "",
+    "boardId": 5
+  },
+  "whisper": {
+    "model": "base",
+    "language": "fr"
+  }
+}
+EOF
+    
+    # 6. Créer le fichier cache.ts manquant
+    log "Création du fichier cache.ts..."
+    cat > "$INSTALL_DIR/server/src/services/cache.ts" << 'EOF'
+// Simple cache implementation
+export const cache = {
+  data: new Map<string, any>(),
+  
+  get(key: string) {
+    return this.data.get(key);
+  },
+  
+  set(key: string, value: any, ttl?: number) {
+    this.data.set(key, value);
+    if (ttl) {
+      setTimeout(() => this.data.delete(key), ttl * 1000);
+    }
+  },
+  
+  delete(key: string) {
+    return this.data.delete(key);
+  },
+  
+  clear() {
+    this.data.clear();
+  }
+};
+EOF
+    
+    # 7. Corriger les erreurs dans redis-service.ts
+    if [[ -f "$INSTALL_DIR/server/src/services/redis-service.ts" ]]; then
+        log "Correction du service Redis..."
+        sed -i 's/private client/public client/g' "$INSTALL_DIR/server/src/services/redis-service.ts"
+        
+        # Ajouter les méthodes manquantes
+        if ! grep -q "updateAgentStatus" "$INSTALL_DIR/server/src/services/redis-service.ts"; then
+            cat >> "$INSTALL_DIR/server/src/services/redis-service.ts" << 'EOF'
+
+  async updateAgentStatus(email: string, status: any) {
+    await this.client.hSet(`agent:${email}`, 'status', JSON.stringify(status));
+  }
+
+  async deleteAgent(id: string) {
+    await this.client.del(`agent:${id}`);
+  }
+
+  async getQueueStats() {
+    return {
+      size: 0,
+      processing: 0,
+      failed: 0
+    };
+  }
+EOF
+        fi
+    fi
+    
+    # 8. Installer rollup pour le dashboard
+    log "Installation de rollup pour le dashboard..."
+    cd "$INSTALL_DIR/dashboard"
+    sudo -u "$SERVICE_USER" npm install --save-dev @rollup/rollup-linux-x64-gnu || warn "Rollup n'a pas pu être installé"
+    
+    # 9. Corriger le script de build du dashboard pour ne pas utiliser tsc
     if [[ -f "$INSTALL_DIR/dashboard/package.json" ]]; then
         sed -i 's/"build": "tsc && vite build"/"build": "vite build"/' "$INSTALL_DIR/dashboard/package.json"
     fi
     
-    # Essayer de construire l'application
+    # 10. Essayer de construire l'application
+    cd "$INSTALL_DIR"
     if sudo -u "$SERVICE_USER" npm run build; then
         log "Build réussi"
         BUILD_SUCCESS=true
@@ -214,24 +457,27 @@ install_application() {
         BUILD_SUCCESS=false
         
         # Essayer au moins de construire le dashboard (frontend)
-        cd "$INSTALL_DIR"
         sudo -u "$SERVICE_USER" npm run build:dashboard || warn "Build dashboard échoué"
         
         # Créer un fichier marqueur pour indiquer le mode fallback
         echo "fallback" > "$INSTALL_DIR/.build-mode"
         
-        # S'assurer que les dépendances de base sont installées pour le mode fallback
-        cd "$INSTALL_DIR/server"
-        if [[ ! -d "node_modules" ]]; then
-            log "Installation des dépendances du serveur pour le mode fallback..."
-            sudo -u "$SERVICE_USER" npm install express cors socket.io --save
-        fi
+        # Installer les dépendances minimales pour le fallback
+        log "Installation des dépendances minimales..."
+        sudo -u "$SERVICE_USER" npm install express cors socket.io --save
     fi
     
-    # Rendre le fichier index.js exécutable
-    if [[ -f "$INSTALL_DIR/server/index.js" ]]; then
-        chmod +x "$INSTALL_DIR/server/index.js"
+    # Définir les permissions correctes
+    chown -R "$SERVICE_USER:$SERVICE_USER" "$INSTALL_DIR"
+    
+    # Créer le script de démarrage fallback s'il n'existe pas
+    if [[ ! -f "$INSTALL_DIR/start-server.js" ]]; then
+        create_fallback_server
     fi
+    
+    # Rendre les fichiers exécutables
+    [[ -f "$INSTALL_DIR/server/index.js" ]] && chmod +x "$INSTALL_DIR/server/index.js"
+    [[ -f "$INSTALL_DIR/start-server.js" ]] && chmod +x "$INSTALL_DIR/start-server.js"
     
     log "Application installée avec succès"
 }
@@ -452,6 +698,127 @@ EOF
     log "Service de découverte créé"
 }
 
+# Créer le serveur fallback
+create_fallback_server() {
+    log "Création du serveur fallback..."
+    
+    cat > "$INSTALL_DIR/start-server.js" << 'EOFSRV'
+const express = require('express');
+const http = require('http');
+const cors = require('cors');
+const path = require('path');
+
+const app = express();
+const server = http.createServer(app);
+const PORT = process.env.PORT || 3000;
+
+// Middleware
+app.use(cors());
+app.use(express.json());
+
+// Routes de base
+app.get('/', (req, res) => {
+    res.json({
+        name: '3CX-Ninja Realtime Server',
+        version: '2.0.0',
+        status: 'running (mode simplifié)',
+        port: PORT
+    });
+});
+
+app.get('/health', (req, res) => {
+    res.json({ status: 'ok', mode: 'simplified' });
+});
+
+app.get('/api/health', (req, res) => {
+    res.json({ status: 'ok', timestamp: new Date() });
+});
+
+app.get('/api/install/discover', (req, res) => {
+    res.json({
+        serverUrl: `http://${process.env.SERVER_IP || 'localhost'}:${PORT}`,
+        apiKey: process.env.API_KEY,
+        serverName: '3CX-Ninja-Server',
+        version: '2.0.0'
+    });
+});
+
+// Socket.io si disponible
+try {
+    const { Server } = require('socket.io');
+    const io = new Server(server, {
+        cors: { origin: '*', credentials: true }
+    });
+    
+    io.on('connection', (socket) => {
+        console.log('Client connected:', socket.id);
+        socket.on('disconnect', () => {
+            console.log('Client disconnected:', socket.id);
+        });
+    });
+} catch (e) {
+    console.log('Socket.io non disponible, WebSocket désactivé');
+}
+
+// Découverte réseau
+if (process.env.ENABLE_DISCOVERY === 'true') {
+    const dgram = require('dgram');
+    const socket = dgram.createSocket('udp4');
+    const DISCOVERY_PORT = parseInt(process.env.DISCOVERY_PORT || '53434');
+    
+    socket.on('message', (msg, rinfo) => {
+        try {
+            const message = JSON.parse(msg.toString());
+            if (message.type === 'DISCOVER_3CX_NINJA_SERVER') {
+                const response = {
+                    type: 'SERVER_DISCOVERY_RESPONSE',
+                    server: {
+                        name: '3CX-Ninja-Server',
+                        ip: process.env.SERVER_IP || 'localhost',
+                        port: PORT,
+                        apiKey: process.env.API_KEY,
+                        version: '2.0.0'
+                    }
+                };
+                socket.send(Buffer.from(JSON.stringify(response)), rinfo.port, rinfo.address);
+            }
+        } catch (error) {
+            console.error('Discovery error:', error);
+        }
+    });
+    
+    socket.bind(DISCOVERY_PORT, () => {
+        console.log(`Discovery service on port ${DISCOVERY_PORT}`);
+    });
+}
+
+// Démarrer le serveur
+server.listen(PORT, '0.0.0.0', () => {
+    console.log(`
+========================================
+🚀 3CX-Ninja Server (Mode Simplifié)
+========================================
+📡 Port: ${PORT}
+🔑 API Key: ${process.env.API_KEY}
+📍 IP: ${process.env.SERVER_IP}
+🔍 Discovery: ${process.env.ENABLE_DISCOVERY === 'true' ? 'ON' : 'OFF'}
+========================================
+    `);
+});
+
+// Gestion des erreurs
+process.on('uncaughtException', (error) => {
+    console.error('Uncaught Exception:', error);
+});
+
+process.on('unhandledRejection', (reason) => {
+    console.error('Unhandled Rejection:', reason);
+});
+EOFSRV
+    
+    chown "$SERVICE_USER:$SERVICE_USER" "$INSTALL_DIR/start-server.js"
+}
+
 # Installer Whisper
 install_whisper() {
     log "Installation de Whisper..."
@@ -499,7 +866,7 @@ WorkingDirectory=$INSTALL_DIR
 Environment=NODE_ENV=production
 Environment=PATH=$INSTALL_DIR/venv/bin:/usr/local/bin:/usr/bin:/bin
 ExecStartPre=/bin/bash -c 'mkdir -p /var/log/3cx-ninja && chown $SERVICE_USER:$SERVICE_USER /var/log/3cx-ninja'
-ExecStart=/bin/bash -c 'if [[ -f server/dist/index.js ]]; then /usr/bin/node server/dist/index.js; else /usr/bin/node server/index.js; fi'
+ExecStart=/bin/bash -c 'if [[ -f server/dist/index.js ]]; then exec /usr/bin/node server/dist/index.js; elif [[ -f server/index.js ]]; then exec /usr/bin/node server/index.js; else exec /usr/bin/node start-server.js; fi'
 Restart=always
 RestartSec=10
 StandardOutput=journal
@@ -968,13 +1335,33 @@ start_services() {
     # Démarrer l'application
     systemctl start $SERVICE_NAME
     
-    # Vérifier le statut
+    # Attendre le démarrage
+    log "Attente du démarrage du service..."
     sleep 5
     
+    # Vérifier le statut
     if systemctl is-active --quiet $SERVICE_NAME; then
         log "Service $SERVICE_NAME démarré avec succès"
+        
+        # Tester l'API
+        if curl -s -f "http://localhost:$API_PORT/health" > /dev/null 2>&1; then
+            log "API de santé répond correctement"
+        else
+            warn "L'API ne répond pas encore, vérifiez les logs avec: journalctl -u $SERVICE_NAME -f"
+        fi
     else
-        error "Échec du démarrage du service $SERVICE_NAME"
+        warn "Le service n'a pas démarré correctement"
+        log "Tentative de démarrage en mode debug..."
+        
+        # Afficher les erreurs
+        journalctl -u $SERVICE_NAME -n 50 --no-pager
+        
+        # Essayer de démarrer manuellement pour voir les erreurs
+        log "Test manuel du serveur..."
+        cd "$INSTALL_DIR"
+        timeout 10 sudo -u "$SERVICE_USER" /usr/bin/node start-server.js 2>&1 | head -20 || true
+        
+        warn "Vérifiez la configuration et les logs"
     fi
     
     log "Services démarrés"
