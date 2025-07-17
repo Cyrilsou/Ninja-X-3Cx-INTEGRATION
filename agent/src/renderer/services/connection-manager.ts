@@ -1,5 +1,26 @@
 import { io, Socket } from 'socket.io-client';
-import { Agent, Logger } from '@3cx-ninja/shared';
+import { Agent } from '@3cx-ninja/shared';
+
+// Simple Logger pour le navigateur
+class Logger {
+  constructor(private service: string) {}
+
+  info(message: string, ...args: any[]) {
+    console.log(`[${new Date().toISOString()}] [${this.service}] INFO:`, message, ...args);
+  }
+
+  error(message: string, ...args: any[]) {
+    console.error(`[${new Date().toISOString()}] [${this.service}] ERROR:`, message, ...args);
+  }
+
+  warn(message: string, ...args: any[]) {
+    console.warn(`[${new Date().toISOString()}] [${this.service}] WARN:`, message, ...args);
+  }
+
+  debug(message: string, ...args: any[]) {
+    console.log(`[${new Date().toISOString()}] [${this.service}] DEBUG:`, message, ...args);
+  }
+}
 
 // Simple EventEmitter pour le navigateur
 class EventEmitter {
