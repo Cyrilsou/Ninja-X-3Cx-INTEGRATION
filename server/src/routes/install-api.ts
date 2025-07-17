@@ -124,16 +124,17 @@ router.get('/quick-install', (req: Request, res: Response) => {
                 break;
             default:
                 // Détection automatique
-                command = {
+                const commandObj = {
                     windows: `powershell -c "irm ${config.serverUrl}/api/install/install-agent.ps1 | iex"`,
                     linux: `curl -sSL ${config.serverUrl}/api/install/install-agent.sh | bash`,
                     macos: `curl -sSL ${config.serverUrl}/api/install/install-agent.sh | bash`
                 };
+                command = commandObj;
         }
         
         res.json({
             serverUrl: config.serverUrl,
-            commands: typeof command === 'string' ? { [platform || 'auto']: command } : command,
+            commands: typeof command === 'string' ? { [platform?.toString() || 'auto']: command } : command,
             instructions: {
                 windows: 'Exécuter en tant qu\'administrateur dans PowerShell',
                 linux: 'Exécuter en tant qu\'utilisateur normal',

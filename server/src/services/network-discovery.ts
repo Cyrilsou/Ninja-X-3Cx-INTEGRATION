@@ -109,7 +109,7 @@ export class NetworkDiscovery extends EventEmitter {
             } catch (error) {
                 logger.warn('Invalid discovery message received:', {
                     from: `${rinfo.address}:${rinfo.port}`,
-                    error: error.message
+                    error: (error as Error).message
                 });
             }
         });
@@ -192,13 +192,19 @@ export class NetworkDiscovery extends EventEmitter {
                 return;
             }
 
-            this.socket.bind(this.serverInfo.discoveryPort, (error) => {
-                if (error) {
-                    logger.error('Failed to bind discovery socket:', error);
-                    reject(error);
-                    return;
-                }
+            // Handle bind errors
+            const onError = (error: Error) => {
+                logger.error('Failed to bind discovery socket:', error);
+                this.socket.removeListener('error', onError);
+                reject(error);
+            };
+            
+            this.socket.once('error', onError);
 
+            this.socket.bind(this.serverInfo.discoveryPort, () => {
+                // Remove the error handler since bind succeeded
+                this.socket.removeListener('error', onError);
+                
                 this.isRunning = true;
                 this.startBroadcast();
                 

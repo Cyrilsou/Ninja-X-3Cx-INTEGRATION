@@ -31,7 +31,22 @@
     "apiUrl": "https://app.ninjarmm.com/api/v2",
     "boardId": 5,
     "defaultPriority": 2,
-    "defaultStatus": 1
+    "defaultStatus": 1,
+    "clientId": "",
+    "clientSecret": ""
+  },
+  "ninjaone": {
+    "clientId": "",
+    "clientSecret": "",
+    "boardId": 5
+  },
+  "3cx": {
+    "clientId": "",
+    "clientSecret": ""
+  },
+  "auth": {
+    "jwtSecret": "your-jwt-secret-change-this",
+    "adminPassword": "admin123"
   },
   "security": {
     "apiKey": "change-this-in-production",

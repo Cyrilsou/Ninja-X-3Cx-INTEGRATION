@@ -117,7 +117,7 @@ export class NinjaAuth {
       this.logger.error('Token refresh failed:', error);
       
       // Si le refresh échoue, supprimer le token invalide
-      await cache.del(this.tokenKey);
+      await cache.delete(this.tokenKey);
       
       // Notifier les administrateurs
       this.logger.error('CRITICAL: NinjaOne token refresh failed - manual intervention required');
@@ -136,10 +136,10 @@ export class NinjaAuth {
     };
 
     // Sauvegarder avec expiration Redis
-    await cache.setex(
+    await cache.set(
       this.tokenKey,
-      token.expires_in,
-      tokenData
+      tokenData,
+      token.expires_in
     );
   }
 

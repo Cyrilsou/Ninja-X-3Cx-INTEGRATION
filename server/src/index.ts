@@ -13,7 +13,7 @@ import { SocketManager } from './websocket/socket-manager';
 import { TranscriptionQueue } from './services/transcription-queue';
 import WhisperLocalService from './services/whisper-local';
 import AudioProcessingService from './services/audio-processing';
-import { setupDatabase } from './database';
+import { initDatabase } from './database';
 import { createApiRouter } from './api/routes';
 import { create3CXWebhookRouter } from './api/routes/webhook-3cx';
 import { createAdminRouter } from './api/routes/admin';
@@ -104,7 +104,7 @@ app.get('/health', async (req, res) => {
   } catch (error) {
     res.status(503).json({
       status: 'unhealthy',
-      error: error.message
+      error: (error as Error).message
     });
   }
 });
@@ -138,7 +138,7 @@ async function startServer() {
     
     // Initialiser la base de données
     logger.info('Setting up database...');
-    await setupDatabase();
+    await initDatabase();
     
     // Initialiser Whisper
     logger.info('Initializing Whisper...');
@@ -170,7 +170,7 @@ async function startServer() {
     const port = process.env.PORT || config.get('server.port');
     const host = config.get('server.host');
     
-    httpServer.listen(port, host, () => {
+    httpServer.listen(Number(port), host as string, () => {
       logger.info(`Server running on http://${host}:${port}`);
       logger.info(`Environment: ${process.env.NODE_ENV || 'development'}`);
       logger.info(`Whisper model: ${config.get('whisper.model')}`);

@@ -77,11 +77,11 @@ export function createAdminRouter(redis: RedisService, socketManager: SocketMana
       const loadAvg = os.loadavg();
       
       // Redis status
-      let redisStatus = { connected: false, info: null };
+      let redisStatus: { connected: boolean; info: string | null } = { connected: false, info: null };
       try {
         await redis.client.ping();
         redisStatus.connected = true;
-        redisStatus.info = await redis.client.info();
+        redisStatus.info = (await redis.client.info()) as string;
       } catch (error) {
         logger.error('Redis health check failed:', error);
       }

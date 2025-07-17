@@ -116,7 +116,7 @@ export class ThreeCXAuth {
 
     } catch (error) {
       this.logger.error('Token refresh failed:', error);
-      await cache.del(`${this.tokenKey}:${username}`);
+      await cache.delete(`${this.tokenKey}:${username}`);
       return null;
     }
   }
@@ -150,10 +150,10 @@ export class ThreeCXAuth {
     };
 
     // Sauvegarder avec expiration
-    await cache.setex(
+    await cache.set(
       `${this.tokenKey}:${username}`,
-      token.expires_in,
-      tokenData
+      tokenData,
+      token.expires_in
     );
   }
 
@@ -161,7 +161,7 @@ export class ThreeCXAuth {
    * Déconnecte un utilisateur
    */
   async logout(username: string): Promise<void> {
-    await cache.del(`${this.tokenKey}:${username}`);
+    await cache.delete(`${this.tokenKey}:${username}`);
     this.logger.info(`User ${username} logged out`);
   }
 
@@ -179,7 +179,7 @@ export class ThreeCXAuth {
         const token = authHeader.substring(7);
         
         // Vérifier le token dans le cache
-        const keys = await cache.keys(`${this.tokenKey}:*`);
+        const keys = cache.keys(`${this.tokenKey}:*`);
         for (const key of keys) {
           const tokenData = await cache.get(key);
           if (tokenData && tokenData.access_token === token) {

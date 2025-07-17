@@ -3,7 +3,7 @@ import { Agent, Call3CX, AudioChunk, Logger } from '@3cx-ninja/shared';
 import config from 'config';
 
 export class RedisService {
-  private client: RedisClientType;
+  public client: RedisClientType;
   private logger = new Logger('Redis');
   private prefix: string;
 
@@ -175,6 +175,26 @@ export class RedisService {
         }
       }
     );
+  }
+
+  // Additional methods for missing functionality
+  async updateAgentStatus(email: string, status: any): Promise<void> {
+    await this.client.hSet(`agent:${email}`, 'status', JSON.stringify(status));
+  }
+
+  async deleteAgent(id: string): Promise<number> {
+    const key = `${this.prefix}agent:${id}`;
+    return await this.client.del(key);
+  }
+
+  async getQueueStats(): Promise<{ size: number; processing: number; failed: number }> {
+    // This is a simplified implementation
+    // In a real scenario, you might want to track these stats properly
+    return {
+      size: 0,
+      processing: 0,
+      failed: 0
+    };
   }
 }
 

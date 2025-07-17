@@ -87,7 +87,7 @@ export function create3CXWebhookRouter(redis: RedisService, socketManager: Socke
         
         // Trigger analysis if transcription exists
         const existingCall = await CallModel.findByPk(callId);
-        if (existingCall && existingCall.transcriptionId) {
+        if (existingCall && (existingCall as any).transcriptionId) {
           socketManager.emitNotification('all', {
             type: 'call_ready_for_analysis',
             message: 'Appel terminé, prêt pour analyse',

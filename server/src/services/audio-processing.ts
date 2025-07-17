@@ -57,8 +57,8 @@ export class AudioProcessingService {
     return new Promise((resolve, reject) => {
       ffmpeg(inputPath)
         .inputFormat('s16le') // PCM 16-bit little-endian
-        .audioFrequency(audioConfig.sampleRate)
-        .audioChannels(audioConfig.channels)
+        .audioFrequency((audioConfig as any).sampleRate || 16000)
+        .audioChannels((audioConfig as any).channels || 1)
         .audioCodec('pcm_s16le')
         .format('wav')
         .on('end', () => {
@@ -91,7 +91,7 @@ export class AudioProcessingService {
           this.logger.error('Merge error:', err);
           reject(err);
         })
-        .mergeToFile(outputPath);
+        .mergeToFile(outputPath, path.dirname(outputPath));
     });
   }
 
@@ -133,7 +133,7 @@ export class AudioProcessingService {
         const filePath = path.join(this.tempDir, file);
         const stats = await fs.stat(filePath);
 
-        if (now - stats.mtime.getTime() > maxAge) {
+        if (now - stats.mtime.getTime() > (maxAge as number)) {
           await fs.unlink(filePath);
           this.logger.debug(`Cleaned up old file: ${file}`);
         }

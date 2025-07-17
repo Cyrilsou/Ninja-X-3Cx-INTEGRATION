@@ -65,10 +65,12 @@ export class NinjaAPI {
       this.accessToken = response.data.access_token;
       
       // Mettre en cache pour 55 minutes (le token expire après 1h)
-      await this.redis.client.setEx('ninja:access_token', 3300, this.accessToken);
+      if (this.accessToken) {
+        await this.redis.client.setEx('ninja:access_token', 3300, this.accessToken);
+      }
       
       this.logger.info('NinjaOne token refreshed successfully');
-      return this.accessToken;
+      return this.accessToken || '';
     } catch (error) {
       this.logger.error('Failed to refresh NinjaOne token:', error);
       throw error;
@@ -90,7 +92,7 @@ export class NinjaAPI {
     }, {
       maxRetries: 3,
       initialDelay: 2000,
-      onRetry: (error, attempt) => {
+      onRetry: (error: any, attempt: number) => {
         this.logger.warn(`Retry ${attempt} for NinjaOne ticket creation: ${error.message}`);
       }
     });

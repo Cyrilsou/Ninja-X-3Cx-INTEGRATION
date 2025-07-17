@@ -108,7 +108,7 @@ router.get('/ninja/status', async (req, res) => {
     
     res.json({
       authenticated: !!token,
-      expiresAt: token ? new Date(token.expires_at || 0) : null
+      expiresAt: token ? new Date(Date.now() + ((token.expires_in || 0) * 1000)) : null
     });
 
   } catch (error) {

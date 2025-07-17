@@ -43,7 +43,7 @@ export class TranscriptionQueue {
   private setupWorkers() {
     const concurrency = config.get('transcription.maxConcurrent');
 
-    this.queue.process(concurrency, async (job) => {
+    this.queue.process(Number(concurrency), async (job) => {
       this.logger.info(`Processing transcription job: ${job.id} (${job.data.type})`);
 
       try {
@@ -85,7 +85,7 @@ export class TranscriptionQueue {
     const totalSamples = chunks.reduce((sum, c) => sum + c.data.length / 2, 0); // 16-bit = 2 bytes
     const durationMs = totalSamples / samplesPerMs;
 
-    if (durationMs >= chunkDuration) {
+    if (durationMs >= (chunkDuration as number)) {
       // Extraire les chunks à traiter
       const chunksToProcess = [...chunks];
       this.audioBuffers.set(callId, []); // Reset buffer

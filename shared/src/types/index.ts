@@ -74,6 +74,9 @@ export interface Agent {
   name: string;
   status: 'online' | 'busy' | 'offline';
   currentCall?: Call3CX;
+  version?: string;
+  ipAddress?: string;
+  lastSeen?: Date;
 }
 
 export interface AudioChunk {

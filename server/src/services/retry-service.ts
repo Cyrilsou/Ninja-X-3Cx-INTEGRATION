@@ -53,7 +53,7 @@ export class RetryService {
         
         this.logger.warn(
           `Attempt ${attempt} failed, retrying in ${delay}ms:`,
-          error.message
+          (error as Error).message
         );
         
         if (onRetry) {
@@ -71,7 +71,7 @@ export class RetryService {
     operation: () => Promise<T>,
     retryOptions?: RetryOptions
   ): Promise<T> {
-    return this.queue.add(() => this.withRetry(operation, retryOptions));
+    return this.queue.add(() => this.withRetry(operation, retryOptions)) as Promise<T>;
   }
 
   async bulkRetry<T>(
@@ -92,7 +92,7 @@ export class RetryService {
       } else {
         return { success: false, error: result.reason };
       }
-    });
+    }) as Array<{ success: boolean; result?: T; error?: Error }>;
   }
 
   private delay(ms: number): Promise<void> {
