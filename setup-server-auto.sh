@@ -545,7 +545,7 @@ create_agent_install_api() {
     
     mkdir -p "$INSTALL_DIR/install-api"
     
-    cat > "$INSTALL_DIR/install-api/agent-install.js" << 'EOF'
+    cat > "$INSTALL_DIR/install-api/agent-install.js" << 'EOFJS'
 const express = require('express');
 const path = require('path');
 const fs = require('fs');
@@ -761,8 +761,63 @@ EOF
     systemctl --user daemon-reload
 }
 
+# Fonction principale d'installation
+main() {
+    log "Installation de l'agent 3CX-Ninja..."
+    log "Serveur: $SERVER_URL"
+    
+    detect_os
+    detect_arch
+    
+    # Créer le dossier de configuration
+    mkdir -p "$AGENT_DIR"
+    
+    # Télécharger l'agent
+    AGENT_URL="$SERVER_URL/api/install/agent/$OS/$ARCH"
+    AGENT_FILE="$AGENT_DIR/3cx-ninja-agent"
+    
+    log "Téléchargement de l'agent..."
+    if command -v curl &> /dev/null; then
+        curl -L -o "$AGENT_FILE" "$AGENT_URL"
+    elif command -v wget &> /dev/null; then
+        wget -O "$AGENT_FILE" "$AGENT_URL"
+    else
+        echo "curl ou wget requis"
+        exit 1
+    fi
+    
+    # Rendre exécutable
+    chmod +x "$AGENT_FILE"
+    
+    # Configuration automatique
+    cat > "$CONFIG_FILE" << EOFCONFIG
+{
+    "serverUrl": "$SERVER_URL",
+    "apiKey": "$API_KEY",
+    "autoDiscovered": true,
+    "installedAt": "$(date -Iseconds)"
+}
+EOFCONFIG
+    
+    # Créer le service (Linux uniquement)
+    if [[ "$OS" == "linux" ]]; then
+        create_service
+    fi
+    
+    log "Installation terminée!"
+    log "L'agent va se connecter automatiquement à $SERVER_URL"
+    
+    # Démarrer l'agent
+    if [[ "$OS" == "linux" ]]; then
+        systemctl --user enable 3cx-ninja-agent
+        systemctl --user start 3cx-ninja-agent
+    else
+        "$AGENT_FILE" &
+    fi
+}
+
 # Exécuter l'installation
-install_agent
+main
 `;
     
     res.setHeader('Content-Type', 'text/plain');
@@ -792,7 +847,7 @@ router.get('/agent/:platform/:arch?', (req, res) => {
 });
 
 module.exports = router;
-EOF
+EOFJS
     
     chown "$SERVICE_USER:$SERVICE_USER" "$INSTALL_DIR/install-api/agent-install.js"
     
