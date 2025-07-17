@@ -12,6 +12,7 @@
   },
   "dependencies": {
     "@3cx-ninja/shared": "file:../shared",
+    "archiver": "^6.0.1",
     "axios": "^1.6.2",
     "bull": "^4.11.5",
     "cors": "^2.8.5",

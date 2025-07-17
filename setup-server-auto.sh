@@ -552,8 +552,9 @@ EOF
         warn "Build TypeScript échoué, utilisation du mode fallback..."
         BUILD_SUCCESS=false
         
-        # Essayer au moins de construire le dashboard (frontend)
-        sudo -u "$SERVICE_USER" npm run build:dashboard || warn "Build dashboard échoué"
+        # Essayer au moins de construire les dashboards (frontend)
+        sudo -u "$SERVICE_USER" npm run build:dashboard || warn "Build dashboard admin échoué"
+        sudo -u "$SERVICE_USER" npm run build:dashboard-tv || warn "Build dashboard TV échoué"
         
         # Créer un fichier marqueur pour indiquer le mode fallback
         echo "fallback" > "$INSTALL_DIR/.build-mode"
@@ -1582,6 +1583,7 @@ show_final_info() {
     echo "=========================================="
     echo ""
     echo "🌐 Interface Admin: http://$LOCAL_IP"
+    echo "📺 Dashboard TV: http://$LOCAL_IP/tv"
     echo "📱 URL Agent: http://$LOCAL_IP:$API_PORT"
     echo "🔑 Clé API: $API_KEY"
     echo "📡 Port découverte: $DISCOVERY_PORT"

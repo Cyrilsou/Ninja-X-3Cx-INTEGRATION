@@ -17,6 +17,9 @@ import { initDatabase } from './database';
 import { createApiRouter } from './api/routes';
 import { create3CXWebhookRouter } from './api/routes/webhook-3cx';
 import { createAdminRouter } from './api/routes/admin';
+import { createDashboardRouter } from './api/routes/dashboard';
+import { createInstallRouter } from './api/routes/install';
+import { setRedisService } from './services/dashboard-service';
 import authRoutes from './routes/auth';
 import { ninjaAuth } from './services/ninja-auth';
 
@@ -35,6 +38,9 @@ const socketManager = new SocketManager(httpServer, redis, transcriptionQueue);
 // Injecter le socket manager dans la queue
 transcriptionQueue.setSocketManager(socketManager);
 
+// Injecter Redis dans le service dashboard
+setRedisService(redis);
+
 // Middleware
 app.use(helmet({
   contentSecurityPolicy: false, // Pour permettre WebSocket
@@ -47,6 +53,9 @@ app.use(cors({
 
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+
+// Servir les fichiers statiques publics (scripts d'installation, etc.)
+app.use('/public', express.static(path.join(__dirname, '../public')));
 
 // Rate limiting
 const limiter = rateLimit({
@@ -83,8 +92,14 @@ app.use('/api', createApiRouter(redis, socketManager));
 // Routes admin (avec authentification séparée)
 app.use('/api/admin', createAdminRouter(redis, socketManager));
 
+// Routes dashboard (sans auth pour l'affichage TV)
+app.use('/api/dashboard', createDashboardRouter());
+
 // Routes webhook 3CX (sans authentification pour permettre à 3CX de poster)
 app.use('/webhook/3cx', create3CXWebhookRouter(redis, socketManager));
+
+// Routes d'installation (publiques pour permettre l'installation automatique)
+app.use('/api/install', createInstallRouter());
 
 // Health check
 app.get('/health', async (req, res) => {
@@ -109,14 +124,27 @@ app.get('/health', async (req, res) => {
   }
 });
 
-// Servir les fichiers statiques du dashboard en production
+// Servir le dashboard TV en production
+if (process.env.NODE_ENV === 'production') {
+  const dashboardTVPath = path.join(__dirname, '../../dashboard-tv/dist');
+  app.use('/tv', express.static(dashboardTVPath));
+  
+  // Route pour le dashboard TV
+  app.get('/tv*', (req, res) => {
+    res.sendFile(path.join(dashboardTVPath, 'index.html'));
+  });
+}
+
+// Servir les fichiers statiques du dashboard admin en production
 if (process.env.NODE_ENV === 'production') {
   const dashboardPath = path.join(__dirname, '../../dashboard/dist');
   app.use(express.static(dashboardPath));
   
-  // Catch-all pour le routing SPA
+  // Catch-all pour le routing SPA (sauf /tv et /api)
   app.get('*', (req, res) => {
-    res.sendFile(path.join(dashboardPath, 'index.html'));
+    if (!req.path.startsWith('/tv') && !req.path.startsWith('/api')) {
+      res.sendFile(path.join(dashboardPath, 'index.html'));
+    }
   });
 }
 
