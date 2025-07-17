@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # 3CX-Ninja Realtime - Installation serveur automatique complète
-# Avec découverte réseau UDP, Nginx et toute la configuration
+# Avec découverte réseau UDP, Nginx et toutes les corrections
 
 set -e  # Arrêt en cas d'erreur
 
@@ -130,6 +130,14 @@ install_application() {
     log "Copie des fichiers depuis $(pwd)..."
     cp -r . "$INSTALL_DIR/"
     
+    # Supprimer naudiodon du package.json de l'agent
+    log "Suppression de naudiodon..."
+    if [ -f "$INSTALL_DIR/agent/package.json" ] && grep -q "naudiodon" "$INSTALL_DIR/agent/package.json"; then
+        sed -i '/"naudiodon":/d' "$INSTALL_DIR/agent/package.json"
+        sed -i 's/,\s*,/,/g' "$INSTALL_DIR/agent/package.json"
+        sed -i 's/,\s*}/}/g' "$INSTALL_DIR/agent/package.json"
+    fi
+    
     # Changer les permissions
     chown -R "$SERVICE_USER:$SERVICE_USER" "$INSTALL_DIR"
     
@@ -137,8 +145,14 @@ install_application() {
     cd "$INSTALL_DIR"
     log "Installation des dépendances Node.js..."
     
-    # Installer les dépendances
-    sudo -u "$SERVICE_USER" npm install || warn "Certaines dépendances n'ont pas pu être installées"
+    # Installer @types/archiver dans le serveur
+    cd "$INSTALL_DIR/server"
+    sudo -u "$SERVICE_USER" npm install --save-dev @types/archiver
+    
+    cd "$INSTALL_DIR"
+    
+    # Installer les dépendances (sans les optionnelles pour éviter naudiodon)
+    sudo -u "$SERVICE_USER" npm install --no-optional || warn "Certaines dépendances n'ont pas pu être installées"
     
     # Build de l'application
     log "Build de l'application..."
@@ -234,7 +248,8 @@ EOF
     "timeout": 300000,
     "maxRetries": 3,
     "retryDelay": 5000,
-    "chunkDuration": 30
+    "chunkDuration": 30,
+    "tempDir": "/tmp/3cx-ninja"
   },
   "audio": {
     "format": "wav",
@@ -282,6 +297,12 @@ EOF
     "defaultBoardId": 5,
     "defaultStatusId": 1,
     "defaultPriorityId": 2
+  },
+  "ninja": {
+    "apiUrl": "https://app.ninjarmm.com/api/v2",
+    "boardId": 5,
+    "defaultPriority": 2,
+    "defaultStatus": 1
   },
   "security": {
     "apiKey": "\${API_KEY}",
@@ -343,7 +364,9 @@ configure_redis() {
 create_broadcast_service() {
     log "Création du service de broadcast UDP..."
     
-    cat > "$INSTALL_DIR/server/src/services/broadcast-service.ts" << 'EOF'
+    # S'assurer que le service de broadcast existe
+    if [ ! -f "$INSTALL_DIR/server/src/services/broadcast-service.ts" ]; then
+        cat > "$INSTALL_DIR/server/src/services/broadcast-service.ts" << 'EOF'
 import dgram from 'dgram';
 import { Logger } from '@3cx-ninja/shared';
 import config from 'config';
@@ -451,6 +474,7 @@ export class BroadcastService {
 
 export default BroadcastService;
 EOF
+    fi
     
     chown "$SERVICE_USER:$SERVICE_USER" "$INSTALL_DIR/server/src/services/broadcast-service.ts"
     
