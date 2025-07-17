@@ -1051,12 +1051,17 @@ StandardOutput=journal
 StandardError=journal
 SyslogIdentifier=$SERVICE_NAME
 
-# Limites de sécurité
-NoNewPrivileges=true
-PrivateTmp=true
+# Limites de sécurité réduites pour éviter les erreurs de namespace
+NoNewPrivileges=false
+PrivateTmp=false
 ProtectSystem=false
-ReadWritePaths=/var/lib/3cx-ninja /var/log/3cx-ninja /var/cache/3cx-ninja /tmp/3cx-ninja $INSTALL_DIR
 ProtectHome=false
+PrivateDevices=false
+ProtectKernelTunables=false
+ProtectKernelModules=false
+ProtectControlGroups=false
+RestrictRealtime=false
+RestrictNamespaces=false
 
 # Limites de ressources
 LimitNOFILE=65536
