@@ -1,4 +1,4 @@
-import { Sequelize } from 'sequelize';
+import { Sequelize, DataTypes } from 'sequelize';
 import config from 'config';
 import { Logger } from '@3cx-ninja/shared';
 import path from 'path';
@@ -6,7 +6,7 @@ import path from 'path';
 const logger = new Logger('Database');
 
 // Configuration de la base de données
-const dbConfig = config.get('database') as any;
+const dbConfig = config.get<any>('database');
 
 // Utiliser SQLite par défaut
 const sequelize = new Sequelize({
@@ -22,79 +22,107 @@ const sequelize = new Sequelize({
 // Modèles
 export const CallModel = sequelize.define('Call', {
   callId: {
-    type: Sequelize.STRING,
+    type: DataTypes.STRING,
     primaryKey: true
   },
-  extension: Sequelize.STRING,
-  agentEmail: Sequelize.STRING,
-  caller: Sequelize.STRING,
-  callee: Sequelize.STRING,
-  direction: Sequelize.STRING,
-  startTime: Sequelize.DATE,
-  endTime: Sequelize.DATE,
-  duration: Sequelize.INTEGER,
-  status: Sequelize.STRING
+  extension: DataTypes.STRING,
+  agentEmail: DataTypes.STRING,
+  caller: DataTypes.STRING,
+  callee: DataTypes.STRING,
+  direction: DataTypes.STRING,
+  startTime: DataTypes.DATE,
+  endTime: DataTypes.DATE,
+  duration: DataTypes.INTEGER,
+  status: DataTypes.STRING,
+  recordingUrl: DataTypes.STRING
+});
+
+export const AgentModel = sequelize.define('Agent', {
+  id: {
+    type: DataTypes.STRING,
+    primaryKey: true
+  },
+  email: {
+    type: DataTypes.STRING,
+    unique: true
+  },
+  name: DataTypes.STRING,
+  extension: DataTypes.STRING,
+  status: DataTypes.STRING,
+  version: DataTypes.STRING,
+  ipAddress: DataTypes.STRING,
+  lastSeen: DataTypes.DATE
 });
 
 export const TranscriptionModel = sequelize.define('Transcription', {
   id: {
-    type: Sequelize.INTEGER,
+    type: DataTypes.INTEGER,
     primaryKey: true,
     autoIncrement: true
   },
   callId: {
-    type: Sequelize.STRING,
+    type: DataTypes.STRING,
     references: {
       model: CallModel,
       key: 'callId'
     }
   },
-  text: Sequelize.TEXT,
-  language: Sequelize.STRING,
-  confidence: Sequelize.FLOAT,
-  segments: Sequelize.JSON
+  text: DataTypes.TEXT,
+  language: DataTypes.STRING,
+  confidence: DataTypes.FLOAT,
+  segments: DataTypes.JSON,
+  status: {
+    type: DataTypes.STRING,
+    defaultValue: 'pending'
+  }
 });
 
 export const AnalysisModel = sequelize.define('Analysis', {
   id: {
-    type: Sequelize.INTEGER,
+    type: DataTypes.INTEGER,
     primaryKey: true,
     autoIncrement: true
   },
   callId: {
-    type: Sequelize.STRING,
+    type: DataTypes.STRING,
     references: {
       model: CallModel,
       key: 'callId'
     }
   },
-  summary: Sequelize.TEXT,
-  mainIssue: Sequelize.TEXT,
-  customerSentiment: Sequelize.STRING,
-  category: Sequelize.STRING,
-  priority: Sequelize.STRING,
-  suggestedTitle: Sequelize.STRING,
-  actionItems: Sequelize.JSON,
-  keywords: Sequelize.JSON
+  transcriptionId: DataTypes.INTEGER,
+  summary: DataTypes.TEXT,
+  mainIssue: DataTypes.TEXT,
+  customerSentiment: DataTypes.STRING,
+  sentiment: DataTypes.FLOAT,
+  category: DataTypes.STRING,
+  priority: DataTypes.STRING,
+  suggestedTitle: DataTypes.STRING,
+  actionItems: DataTypes.JSON,
+  keywords: DataTypes.JSON,
+  ticketCreated: {
+    type: DataTypes.BOOLEAN,
+    defaultValue: false
+  }
 });
 
 export const TicketModel = sequelize.define('Ticket', {
   id: {
-    type: Sequelize.INTEGER,
+    type: DataTypes.INTEGER,
     primaryKey: true,
     autoIncrement: true
   },
   callId: {
-    type: Sequelize.STRING,
+    type: DataTypes.STRING,
     references: {
       model: CallModel,
       key: 'callId'
     }
   },
-  ninjaTicketId: Sequelize.INTEGER,
-  title: Sequelize.STRING,
-  status: Sequelize.STRING,
-  createdBy: Sequelize.STRING
+  ninjaTicketId: DataTypes.INTEGER,
+  title: DataTypes.STRING,
+  status: DataTypes.STRING,
+  createdBy: DataTypes.STRING
 });
 
 // Relations
@@ -121,5 +149,8 @@ export async function setupDatabase() {
     throw error;
   }
 }
+
+// Export initDatabase pour compatibilité
+export const initDatabase = setupDatabase;
 
 export { sequelize };
