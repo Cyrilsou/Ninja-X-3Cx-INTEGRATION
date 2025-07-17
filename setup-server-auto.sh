@@ -1043,7 +1043,7 @@ User=$SERVICE_USER
 WorkingDirectory=$INSTALL_DIR
 Environment=NODE_ENV=production
 Environment=PATH=$INSTALL_DIR/venv/bin:/usr/local/bin:/usr/bin:/bin
-ExecStartPre=/bin/bash -c 'mkdir -p /var/log/3cx-ninja && chown $SERVICE_USER:$SERVICE_USER /var/log/3cx-ninja'
+ExecStartPre=/bin/mkdir -p /var/log/3cx-ninja
 ExecStart=/bin/bash -c 'if [[ -f server/dist/index.js ]]; then exec /usr/bin/node server/dist/index.js; elif [[ -f server/index.js ]]; then exec /usr/bin/node server/index.js; else exec /usr/bin/node start-server.js; fi'
 Restart=always
 RestartSec=10
@@ -1054,9 +1054,9 @@ SyslogIdentifier=$SERVICE_NAME
 # Limites de sécurité
 NoNewPrivileges=true
 PrivateTmp=true
-ProtectSystem=strict
-ReadWritePaths=/var/lib/3cx-ninja /var/log/3cx-ninja /var/cache/3cx-ninja /tmp/3cx-ninja
-ProtectHome=true
+ProtectSystem=false
+ReadWritePaths=/var/lib/3cx-ninja /var/log/3cx-ninja /var/cache/3cx-ninja /tmp/3cx-ninja $INSTALL_DIR
+ProtectHome=false
 
 # Limites de ressources
 LimitNOFILE=65536
