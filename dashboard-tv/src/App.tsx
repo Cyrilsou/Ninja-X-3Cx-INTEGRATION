@@ -1,8 +1,5 @@
-import React, { useEffect, useState } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { useEffect, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { format } from 'date-fns';
-import { fr } from 'date-fns/locale';
 import axios from 'axios';
 import CallsCard from './components/CallsCard';
 import AgentsCard from './components/AgentsCard';
