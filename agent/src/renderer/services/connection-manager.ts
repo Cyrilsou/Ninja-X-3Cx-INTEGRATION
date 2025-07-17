@@ -212,8 +212,8 @@ export class ConnectionManager extends EventEmitter {
       agentId: this.config.agentInfo.id,
       email: this.config.agentInfo.email,
       extension: this.config.agentInfo.extension,
-      version: process.env.npm_package_version || '1.0.0',
-      platform: process.platform,
+      version: '1.0.0',
+      platform: 'electron',
       capabilities: {
         audio: true,
         video: false,
@@ -370,8 +370,8 @@ export class ConnectionManager extends EventEmitter {
     }
   }
 
-  // Envoyer un événement
-  emit(event: string, ...args: any[]): boolean {
+  // Envoyer un événement au serveur
+  sendToServer(event: string, ...args: any[]): boolean {
     if (this.socket && this.status.connected) {
       this.socket.emit(event, ...args);
       return true;

@@ -31,7 +31,7 @@ const DEFAULT_CONFIG = {
   }
 };
 
-export const App: React.FC = () => {
+const App: React.FC = () => {
   const [config, setConfig] = useState(() => {
     const saved = localStorage.getItem('agent-config');
     return saved ? JSON.parse(saved) : DEFAULT_CONFIG;
@@ -90,7 +90,7 @@ export const App: React.FC = () => {
       
       // Envoyer au serveur si connecté
       if (isConnected && connectionManager) {
-        connectionManager.emit('call:start', { call });
+        connectionManager.sendToServer('call:start', { call });
       } else {
         // Sauvegarder en offline
         offlineManager.addToQueue('call', call);
@@ -101,7 +101,7 @@ export const App: React.FC = () => {
       
       // Envoyer au serveur si connecté
       if (isConnected && connectionManager) {
-        connectionManager.emit('call:end', { callId: call.callId });
+        connectionManager.sendToServer('call:end', { callId: call.callId });
       } else {
         // Sauvegarder en offline
         offlineManager.addToQueue('call', { ...call, ended: true });
@@ -376,3 +376,5 @@ export const App: React.FC = () => {
     </div>
   );
 };
+
+export default App;
