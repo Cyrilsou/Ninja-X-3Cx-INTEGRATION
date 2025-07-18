@@ -118,24 +118,29 @@ fi
 
 # Create installation directory
 INSTALL_DIR="/opt/3cx-whisper-ninjaone"
-print_info "Creating installation directory at $INSTALL_DIR"
-mkdir -p $INSTALL_DIR
-cd $INSTALL_DIR
-
-# Download project files
-print_info "Downloading project files..."
-# In production, this would clone from your repository
-# For now, we'll create the structure
-
-# Create directory structure
-mkdir -p server/{event-receiver,orchestrator,whisper-worker,tv-dashboard,nginx,scripts,config-ui}
-mkdir -p electron-client
-
-# Copy files from current directory if they exist
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
-if [ -d "$SCRIPT_DIR/server" ]; then
-    print_info "Copying project files..."
-    cp -r "$SCRIPT_DIR"/* "$INSTALL_DIR/"
+
+# Check if we're already in the installation directory
+if [ "$SCRIPT_DIR" = "$INSTALL_DIR" ]; then
+    print_info "Already in installation directory: $INSTALL_DIR"
+    print_info "Using existing project files"
+else
+    print_info "Creating installation directory at $INSTALL_DIR"
+    mkdir -p $INSTALL_DIR
+    
+    # Check if project files exist in current directory
+    if [ -d "$SCRIPT_DIR/server" ] && [ -f "$SCRIPT_DIR/docker-compose.yml" ]; then
+        print_info "Copying project files from $SCRIPT_DIR to $INSTALL_DIR..."
+        # Copy all files except the install script itself
+        find "$SCRIPT_DIR" -mindepth 1 -maxdepth 1 ! -name "$(basename $0)" -exec cp -r {} "$INSTALL_DIR/" \;
+    else
+        print_warning "Project files not found in current directory"
+        print_info "Creating directory structure..."
+        cd $INSTALL_DIR
+        mkdir -p server/{event-receiver,orchestrator,whisper-worker,tv-dashboard,nginx,scripts,config-ui}
+        mkdir -p electron-client
+    fi
+    cd $INSTALL_DIR
 fi
 
 # Create data directories
@@ -147,11 +152,11 @@ chmod -R 755 /var/lib/3cx-integration
 
 # Generate self-signed SSL certificate
 print_info "Generating self-signed SSL certificate..."
-mkdir -p server/nginx/ssl
+mkdir -p $INSTALL_DIR/server/nginx/ssl
 SERVER_IP=$(hostname -I | awk '{print $1}')
 openssl req -x509 -nodes -days 365 -newkey rsa:2048 \
-    -keyout server/nginx/ssl/privkey.pem \
-    -out server/nginx/ssl/fullchain.pem \
+    -keyout $INSTALL_DIR/server/nginx/ssl/privkey.pem \
+    -out $INSTALL_DIR/server/nginx/ssl/fullchain.pem \
     -subj "/C=US/ST=State/L=City/O=Organization/CN=$SERVER_IP" \
     2>/dev/null
 
@@ -254,6 +259,14 @@ chmod +x $INSTALL_DIR/logs.sh
 # Build and start config UI
 print_info "Building configuration UI..."
 cd $INSTALL_DIR
+
+# Check if config-ui directory exists
+if [ ! -d "$INSTALL_DIR/server/config-ui" ]; then
+    print_error "Configuration UI directory not found at $INSTALL_DIR/server/config-ui"
+    print_error "Please ensure all project files are present"
+    exit 1
+fi
+
 docker-compose -f docker-compose.config.yml build
 docker-compose -f docker-compose.config.yml up -d
 
