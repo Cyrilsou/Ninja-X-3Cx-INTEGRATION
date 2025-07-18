@@ -178,10 +178,11 @@ services:
     ports:
       - "8080:8080"
     volumes:
-      - ./.env:/app/.env
+      - $INSTALL_DIR:/project:rw
       - /var/run/docker.sock:/var/run/docker.sock
     environment:
       - NODE_ENV=production
+      - DOCKER_ENV=true
     restart: unless-stopped
 EOF
 

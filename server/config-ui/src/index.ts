@@ -10,9 +10,10 @@ import os from 'os';
 
 const app = express();
 const PORT = 8080;
-// In production, __dirname is in dist/, so we need to go up 3 levels to reach project root
-// dist/ -> config-ui/ -> server/ -> Projet/
-const PROJECT_ROOT = path.resolve(__dirname, '..', '..', '..');
+// When running in Docker, the project is mounted at /project
+// When running locally, we need to go up 3 levels from dist/
+const isDocker = process.env.DOCKER_ENV === 'true' || existsSync('/.dockerenv');
+const PROJECT_ROOT = isDocker ? '/project' : path.resolve(__dirname, '..', '..', '..');
 const ENV_FILE_PATH = path.join(PROJECT_ROOT, '.env');
 
 app.use(cors());
