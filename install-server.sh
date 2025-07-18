@@ -266,10 +266,16 @@ chmod +x $INSTALL_DIR/logs.sh
 print_info "Building configuration UI..."
 cd $INSTALL_DIR
 
-# Clean up any existing .env directory (Docker volume issue)
-if [ -d "$INSTALL_DIR/.env" ]; then
-    print_info "Removing existing .env directory..."
+# Clean up any existing .env file or directory (Docker volume issue)
+if [ -e "$INSTALL_DIR/.env" ]; then
+    print_info "Removing existing .env file/directory..."
     rm -rf "$INSTALL_DIR/.env"
+fi
+
+# Also clean up any .env in the mounted volume location
+if [ -e "/project/.env" ]; then
+    print_info "Cleaning up /project/.env..."
+    rm -rf "/project/.env" 2>/dev/null || true
 fi
 
 # Check if config-ui directory exists
