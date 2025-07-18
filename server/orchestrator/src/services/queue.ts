@@ -14,6 +14,7 @@ export interface TranscriptionJob {
   callId: string;
   audioPath: string;
   callData: any;
+  extension?: string;
 }
 
 export class QueueService {

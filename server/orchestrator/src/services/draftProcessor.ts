@@ -27,12 +27,12 @@ export class DraftProcessor {
 
   private setupEventHandlers(): void {
     // Handle draft confirmations from WebSocket
-    this.websocket.on('draftConfirmed', async (data) => {
+    this.websocket.on('draftConfirmed', async (data: any) => {
       await this.processDraftConfirmation(data);
     });
 
     // Handle draft cancellations
-    this.websocket.on('draftCancelled', async (data) => {
+    this.websocket.on('draftCancelled', async (data: any) => {
       await this.processDraftCancellation(data);
     });
   }

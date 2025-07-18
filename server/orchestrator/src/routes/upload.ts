@@ -8,12 +8,6 @@ import { QueueService } from '../services/queue';
 import { logger } from '../utils/logger';
 import { authMiddleware } from '../middleware/auth';
 
-// Fonction pour chiffrer les fichiers audio
-async function encryptAudioFile(filePath: string): Promise<string> {
-  // Pour l'instant, on retourne simplement le chemin
-  // Dans une version de production, implémenter le chiffrement réel
-  return filePath;
-}
 
 const router = Router();
 
@@ -53,7 +47,8 @@ router.post('/api/upload-recording',
   async (req: any, res) => {
     try {
       if (!req.file) {
-        return res.status(400).json({ error: 'Aucun fichier audio reçu' });
+        res.status(400).json({ error: 'Aucun fichier audio reçu' });
+        return;
       }
 
       const callInfo = JSON.parse(req.body.callInfo || '{}');
@@ -68,7 +63,8 @@ router.post('/api/upload-recording',
 
       // Vérifier que l'extension correspond à l'agent authentifié
       if (req.agent && req.agent.extension !== extension) {
-        return res.status(403).json({ error: 'Extension non autorisée' });
+        res.status(403).json({ error: 'Extension non autorisée' });
+        return;
       }
 
       // Sauvegarder les métadonnées en base

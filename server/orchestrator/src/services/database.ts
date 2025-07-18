@@ -164,6 +164,24 @@ export class DatabaseService {
     return result.rows[0];
   }
 
+  static async updateAgentActivity(sessionId: number): Promise<void> {
+    const query = `UPDATE integration.agent_sessions SET last_activity = NOW() WHERE id = $1`;
+    await this.pool.query(query, [sessionId]);
+  }
+
+  static async getActiveConnections(): Promise<any[]> {
+    const query = `
+      SELECT a.*, COUNT(c.id) as active_calls
+      FROM integration.agent_sessions a
+      LEFT JOIN integration.calls c ON c.extension = a.extension AND c.status = 'active'
+      WHERE a.expires_at > NOW()
+      GROUP BY a.id
+      ORDER BY a.last_activity DESC
+    `;
+    const result = await this.pool.query(query);
+    return result.rows;
+  }
+
   static async createAgentSession(sessionData: any): Promise<any> {
     const query = `
       INSERT INTO integration.agent_sessions (

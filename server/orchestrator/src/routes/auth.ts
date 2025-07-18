@@ -14,11 +14,12 @@ const loginSchema = Joi.object({
 });
 
 // Agent login endpoint
-router.post('/agent/login', async (req: Request, res: Response): Promise<void> => {
+router.post('/agent/login', async (req: Request, res: Response) => {
   try {
     const { error, value } = loginSchema.validate(req.body);
     if (error) {
-      return res.status(400).json({ error: 'Invalid request', details: error.details });
+      res.status(400).json({ error: 'Invalid request', details: error.details });
+      return;
     }
 
     const { extension, agentName } = value;
@@ -74,12 +75,13 @@ router.post('/agent/login', async (req: Request, res: Response): Promise<void> =
 });
 
 // Verify token endpoint
-router.get('/verify', async (req: Request, res: Response): Promise<void> => {
+router.get('/verify', async (req: Request, res: Response) => {
   try {
     const token = req.headers.authorization?.replace('Bearer ', '');
     
     if (!token) {
-      return res.status(401).json({ error: 'No token provided' });
+      res.status(401).json({ error: 'No token provided' });
+      return;
     }
 
     const decoded = jwt.verify(token, config.JWT_SECRET) as any;
@@ -89,7 +91,8 @@ router.get('/verify', async (req: Request, res: Response): Promise<void> => {
     const session = await DatabaseService.getAgentByExtension(decoded.extension);
     
     if (!session || session.jwt_token_hash !== tokenHash) {
-      return res.status(401).json({ error: 'Invalid session' });
+      res.status(401).json({ error: 'Invalid session' });
+      return;
     }
 
     // Update activity
@@ -104,7 +107,8 @@ router.get('/verify', async (req: Request, res: Response): Promise<void> => {
 
   } catch (error) {
     if (error instanceof jwt.JsonWebTokenError) {
-      return res.status(401).json({ error: 'Invalid token' });
+      res.status(401).json({ error: 'Invalid token' });
+      return;
     }
     
     logger.error('Token verification failed', error);
