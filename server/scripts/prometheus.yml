@@ -1,0 +1,47 @@
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets: []
+
+scrape_configs:
+  # Event Receiver metrics
+  - job_name: 'event-receiver'
+    static_configs:
+      - targets: ['event-receiver:3001']
+    metrics_path: '/metrics'
+
+  # Orchestrator metrics
+  - job_name: 'orchestrator'
+    static_configs:
+      - targets: ['orchestrator:3002']
+    metrics_path: '/metrics'
+
+  # Whisper Worker metrics
+  - job_name: 'whisper-worker'
+    static_configs:
+      - targets: ['whisper-worker:8080']
+    metrics_path: '/metrics'
+
+  # PostgreSQL exporter
+  - job_name: 'postgres'
+    static_configs:
+      - targets: ['postgres-exporter:9187']
+
+  # Redis exporter
+  - job_name: 'redis'
+    static_configs:
+      - targets: ['redis-exporter:9121']
+
+  # Node exporter for system metrics
+  - job_name: 'node'
+    static_configs:
+      - targets: ['node-exporter:9100']
+
+  # NVIDIA GPU exporter
+  - job_name: 'nvidia-gpu'
+    static_configs:
+      - targets: ['nvidia-exporter:9445']

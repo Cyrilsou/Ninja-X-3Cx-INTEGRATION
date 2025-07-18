@@ -1,0 +1,434 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Configuration 3CX-Whisper-NinjaOne</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css" rel="stylesheet">
+    <style>
+        body {
+            background-color: #f8f9fa;
+        }
+        .config-section {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+        .status-indicator {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            display: inline-block;
+            margin-right: 8px;
+        }
+        .status-ok { background-color: #28a745; }
+        .status-error { background-color: #dc3545; }
+        .status-warning { background-color: #ffc107; }
+        .password-toggle {
+            cursor: pointer;
+        }
+        .server-info {
+            background-color: #e9ecef;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container mt-4">
+        <h1 class="mb-4">
+            <i class="bi bi-gear-fill"></i> Configuration 3CX-Whisper-NinjaOne
+        </h1>
+
+        <!-- Server Info -->
+        <div class="server-info">
+            <h5>Informations du serveur</h5>
+            <div class="row">
+                <div class="col-md-6">
+                    <strong>Adresse IP:</strong> <span id="serverIp">Chargement...</span>
+                </div>
+                <div class="col-md-6">
+                    <strong>Statut:</strong> <span id="serverStatus"><span class="status-indicator status-ok"></span>En ligne</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Status Messages -->
+        <div id="alertContainer"></div>
+
+        <form id="configForm">
+            <!-- Database Configuration -->
+            <div class="config-section">
+                <h3><i class="bi bi-database"></i> Base de données</h3>
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="mb-3">
+                            <label for="POSTGRES_DB" class="form-label">Nom de la base</label>
+                            <input type="text" class="form-control" id="POSTGRES_DB" name="POSTGRES_DB" value="threecx_integration" required>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="mb-3">
+                            <label for="POSTGRES_USER" class="form-label">Utilisateur</label>
+                            <input type="text" class="form-control" id="POSTGRES_USER" name="POSTGRES_USER" value="threecx" required>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="mb-3">
+                            <label for="POSTGRES_PASSWORD" class="form-label">Mot de passe</label>
+                            <div class="input-group">
+                                <input type="password" class="form-control" id="POSTGRES_PASSWORD" name="POSTGRES_PASSWORD" required>
+                                <button class="btn btn-outline-secondary password-toggle" type="button" data-target="POSTGRES_PASSWORD">
+                                    <i class="bi bi-eye"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="mb-3">
+                            <label for="REDIS_PASSWORD" class="form-label">Mot de passe Redis</label>
+                            <div class="input-group">
+                                <input type="password" class="form-control" id="REDIS_PASSWORD" name="REDIS_PASSWORD" required>
+                                <button class="btn btn-outline-secondary password-toggle" type="button" data-target="REDIS_PASSWORD">
+                                    <i class="bi bi-eye"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 3CX Configuration -->
+            <div class="config-section">
+                <h3><i class="bi bi-telephone"></i> Configuration 3CX</h3>
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="mb-3">
+                            <label for="THREECX_API_URL" class="form-label">URL API 3CX</label>
+                            <input type="url" class="form-control" id="THREECX_API_URL" name="THREECX_API_URL" placeholder="https://votre-3cx.com:5001" required>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="mb-3">
+                            <label for="THREECX_API_KEY" class="form-label">Clé API 3CX</label>
+                            <div class="input-group">
+                                <input type="password" class="form-control" id="THREECX_API_KEY" name="THREECX_API_KEY" required>
+                                <button class="btn btn-outline-secondary password-toggle" type="button" data-target="THREECX_API_KEY">
+                                    <i class="bi bi-eye"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="alert alert-info">
+                    <i class="bi bi-info-circle"></i> URL du webhook 3CX: <code id="webhookUrl">https://[IP_SERVEUR]/webhook/call-end</code>
+                </div>
+            </div>
+
+            <!-- NinjaOne Configuration -->
+            <div class="config-section">
+                <h3><i class="bi bi-ticket"></i> Configuration NinjaOne</h3>
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="mb-3">
+                            <label for="NINJAONE_CLIENT_ID" class="form-label">Client ID</label>
+                            <input type="text" class="form-control" id="NINJAONE_CLIENT_ID" name="NINJAONE_CLIENT_ID" required>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="mb-3">
+                            <label for="NINJAONE_CLIENT_SECRET" class="form-label">Client Secret</label>
+                            <div class="input-group">
+                                <input type="password" class="form-control" id="NINJAONE_CLIENT_SECRET" name="NINJAONE_CLIENT_SECRET" required>
+                                <button class="btn btn-outline-secondary password-toggle" type="button" data-target="NINJAONE_CLIENT_SECRET">
+                                    <i class="bi bi-eye"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-12">
+                        <div class="mb-3">
+                            <label for="NINJAONE_INSTANCE_URL" class="form-label">URL Instance NinjaOne</label>
+                            <input type="url" class="form-control" id="NINJAONE_INSTANCE_URL" name="NINJAONE_INSTANCE_URL" placeholder="https://votre-instance.ninjarmm.com" required>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Whisper Configuration -->
+            <div class="config-section">
+                <h3><i class="bi bi-mic"></i> Configuration Whisper</h3>
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="mb-3">
+                            <label for="WHISPER_MODEL" class="form-label">Modèle Whisper</label>
+                            <select class="form-select" id="WHISPER_MODEL" name="WHISPER_MODEL">
+                                <option value="tiny">Tiny (Très rapide, moins précis)</option>
+                                <option value="base">Base (Rapide)</option>
+                                <option value="small">Small (Équilibré)</option>
+                                <option value="medium">Medium (Bonne précision)</option>
+                                <option value="large-v3" selected>Large-v3 (Meilleure précision)</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="mb-3">
+                            <label for="AUDIO_RETENTION_DAYS" class="form-label">Rétention audio (jours)</label>
+                            <input type="number" class="form-control" id="AUDIO_RETENTION_DAYS" name="AUDIO_RETENTION_DAYS" value="30" min="1" max="365" required>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Security -->
+            <div class="config-section">
+                <h3><i class="bi bi-shield-lock"></i> Sécurité</h3>
+                <div class="row">
+                    <div class="col-12">
+                        <button type="button" class="btn btn-secondary mb-3" id="generateSecrets">
+                            <i class="bi bi-arrow-clockwise"></i> Générer des clés aléatoires
+                        </button>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="mb-3">
+                            <label for="JWT_SECRET" class="form-label">Secret JWT (32+ caractères)</label>
+                            <div class="input-group">
+                                <input type="password" class="form-control" id="JWT_SECRET" name="JWT_SECRET" minlength="32" required>
+                                <button class="btn btn-outline-secondary password-toggle" type="button" data-target="JWT_SECRET">
+                                    <i class="bi bi-eye"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="mb-3">
+                            <label for="ENCRYPTION_KEY" class="form-label">Clé de chiffrement (32 caractères)</label>
+                            <div class="input-group">
+                                <input type="password" class="form-control" id="ENCRYPTION_KEY" name="ENCRYPTION_KEY" minlength="32" maxlength="32" required>
+                                <button class="btn btn-outline-secondary password-toggle" type="button" data-target="ENCRYPTION_KEY">
+                                    <i class="bi bi-eye"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Actions -->
+            <div class="d-flex justify-content-between">
+                <button type="button" class="btn btn-secondary" id="testConnection">
+                    <i class="bi bi-check-circle"></i> Tester les connexions
+                </button>
+                <div>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="bi bi-save"></i> Enregistrer la configuration
+                    </button>
+                    <button type="button" class="btn btn-success ms-2" id="startServices">
+                        <i class="bi bi-play-circle"></i> Démarrer les services
+                    </button>
+                </div>
+            </div>
+        </form>
+
+        <!-- Service Status -->
+        <div class="config-section mt-4">
+            <h3><i class="bi bi-activity"></i> État des services</h3>
+            <div id="serviceStatus">
+                <div class="text-center text-muted">
+                    <i class="bi bi-hourglass-split"></i> En attente de configuration...
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        // Get server IP
+        async function getServerInfo() {
+            try {
+                const response = await fetch('/api/server-info');
+                const data = await response.json();
+                document.getElementById('serverIp').textContent = data.ip;
+                document.getElementById('webhookUrl').textContent = `https://${data.ip}/webhook/call-end`;
+            } catch (error) {
+                console.error('Error fetching server info:', error);
+            }
+        }
+
+        // Load existing configuration
+        async function loadConfig() {
+            try {
+                const response = await fetch('/api/config');
+                if (response.ok) {
+                    const config = await response.json();
+                    Object.keys(config).forEach(key => {
+                        const element = document.getElementById(key);
+                        if (element) {
+                            element.value = config[key];
+                        }
+                    });
+                }
+            } catch (error) {
+                console.error('Error loading config:', error);
+            }
+        }
+
+        // Show alert
+        function showAlert(message, type = 'info') {
+            const alertHtml = `
+                <div class="alert alert-${type} alert-dismissible fade show" role="alert">
+                    ${message}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                </div>
+            `;
+            document.getElementById('alertContainer').insertAdjacentHTML('beforeend', alertHtml);
+        }
+
+        // Generate random secrets
+        function generateRandomString(length) {
+            const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*';
+            let result = '';
+            for (let i = 0; i < length; i++) {
+                result += chars.charAt(Math.floor(Math.random() * chars.length));
+            }
+            return result;
+        }
+
+        document.getElementById('generateSecrets').addEventListener('click', () => {
+            document.getElementById('JWT_SECRET').value = generateRandomString(64);
+            document.getElementById('ENCRYPTION_KEY').value = generateRandomString(32);
+            document.getElementById('POSTGRES_PASSWORD').value = generateRandomString(32);
+            document.getElementById('REDIS_PASSWORD').value = generateRandomString(32);
+            showAlert('Clés aléatoires générées avec succès', 'success');
+        });
+
+        // Password toggle
+        document.querySelectorAll('.password-toggle').forEach(button => {
+            button.addEventListener('click', () => {
+                const targetId = button.getAttribute('data-target');
+                const input = document.getElementById(targetId);
+                const icon = button.querySelector('i');
+                
+                if (input.type === 'password') {
+                    input.type = 'text';
+                    icon.classList.remove('bi-eye');
+                    icon.classList.add('bi-eye-slash');
+                } else {
+                    input.type = 'password';
+                    icon.classList.remove('bi-eye-slash');
+                    icon.classList.add('bi-eye');
+                }
+            });
+        });
+
+        // Save configuration
+        document.getElementById('configForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const formData = new FormData(e.target);
+            const config = Object.fromEntries(formData);
+            
+            try {
+                const response = await fetch('/api/config', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(config)
+                });
+                
+                if (response.ok) {
+                    showAlert('Configuration enregistrée avec succès', 'success');
+                    await checkServiceStatus();
+                } else {
+                    const error = await response.json();
+                    showAlert(`Erreur: ${error.message}`, 'danger');
+                }
+            } catch (error) {
+                showAlert(`Erreur: ${error.message}`, 'danger');
+            }
+        });
+
+        // Test connections
+        document.getElementById('testConnection').addEventListener('click', async () => {
+            showAlert('Test des connexions en cours...', 'info');
+            
+            try {
+                const response = await fetch('/api/test-connections', {
+                    method: 'POST'
+                });
+                const results = await response.json();
+                
+                Object.entries(results).forEach(([service, result]) => {
+                    if (result.success) {
+                        showAlert(`✅ ${service}: Connexion réussie`, 'success');
+                    } else {
+                        showAlert(`❌ ${service}: ${result.error}`, 'danger');
+                    }
+                });
+            } catch (error) {
+                showAlert(`Erreur lors du test: ${error.message}`, 'danger');
+            }
+        });
+
+        // Start services
+        document.getElementById('startServices').addEventListener('click', async () => {
+            if (!confirm('Êtes-vous sûr de vouloir démarrer tous les services ?')) return;
+            
+            showAlert('Démarrage des services...', 'info');
+            
+            try {
+                const response = await fetch('/api/services/start', {
+                    method: 'POST'
+                });
+                
+                if (response.ok) {
+                    showAlert('Services démarrés avec succès', 'success');
+                    setTimeout(() => checkServiceStatus(), 5000);
+                } else {
+                    const error = await response.json();
+                    showAlert(`Erreur: ${error.message}`, 'danger');
+                }
+            } catch (error) {
+                showAlert(`Erreur: ${error.message}`, 'danger');
+            }
+        });
+
+        // Check service status
+        async function checkServiceStatus() {
+            try {
+                const response = await fetch('/api/services/status');
+                const services = await response.json();
+                
+                let statusHtml = '<div class="row">';
+                Object.entries(services).forEach(([service, status]) => {
+                    const statusClass = status.running ? 'status-ok' : 'status-error';
+                    const statusText = status.running ? 'En ligne' : 'Hors ligne';
+                    
+                    statusHtml += `
+                        <div class="col-md-4 mb-3">
+                            <div class="d-flex align-items-center">
+                                <span class="status-indicator ${statusClass}"></span>
+                                <strong>${service}:</strong>&nbsp;${statusText}
+                            </div>
+                            ${status.health ? `<small class="text-muted">Santé: ${status.health}</small>` : ''}
+                        </div>
+                    `;
+                });
+                statusHtml += '</div>';
+                
+                document.getElementById('serviceStatus').innerHTML = statusHtml;
+            } catch (error) {
+                console.error('Error checking service status:', error);
+            }
+        }
+
+        // Initialize
+        getServerInfo();
+        loadConfig();
+        setInterval(checkServiceStatus, 30000); // Check status every 30 seconds
+    </script>
+</body>
+</html>

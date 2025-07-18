@@ -1,0 +1,75 @@
+{
+  "name": "3cx-ninjaone-agent",
+  "version": "1.0.0",
+  "description": "Agent client for 3CX-NinjaOne integration",
+  "main": "dist/main.js",
+  "scripts": {
+    "build": "tsc && webpack --config webpack.config.js",
+    "start": "electron .",
+    "dev": "concurrently \"tsc -w\" \"webpack --watch\" \"electron .\"",
+    "pack": "electron-builder --dir",
+    "dist": "electron-builder",
+    "dist:win": "electron-builder --win",
+    "dist:mac": "electron-builder --mac",
+    "postinstall": "electron-builder install-app-deps"
+  },
+  "build": {
+    "appId": "com.company.3cx-ninjaone-agent",
+    "productName": "3CX NinjaOne Agent",
+    "directories": {
+      "output": "dist-electron"
+    },
+    "files": [
+      "dist/**/*",
+      "assets/**/*",
+      "node_modules/**/*"
+    ],
+    "mac": {
+      "category": "public.app-category.business",
+      "target": ["dmg", "pkg"],
+      "icon": "assets/icon.icns"
+    },
+    "win": {
+      "target": ["nsis", "msi"],
+      "icon": "assets/icon.ico"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true
+    },
+    "publish": {
+      "provider": "generic",
+      "url": "https://your-update-server.com"
+    }
+  },
+  "dependencies": {
+    "electron-store": "^8.1.0",
+    "electron-updater": "^6.1.7",
+    "ws": "^8.16.0",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "react-router-dom": "^6.20.1",
+    "@mui/material": "^5.15.0",
+    "@emotion/react": "^11.11.1",
+    "@emotion/styled": "^11.11.0",
+    "axios": "^1.6.2",
+    "dayjs": "^1.11.10"
+  },
+  "devDependencies": {
+    "@types/node": "^20.10.5",
+    "@types/react": "^18.2.45",
+    "@types/react-dom": "^18.2.18",
+    "@types/ws": "^8.5.10",
+    "electron": "^28.0.0",
+    "electron-builder": "^24.9.1",
+    "typescript": "^5.3.3",
+    "webpack": "^5.89.0",
+    "webpack-cli": "^5.1.4",
+    "ts-loader": "^9.5.1",
+    "html-webpack-plugin": "^5.6.0",
+    "copy-webpack-plugin": "^11.0.0",
+    "concurrently": "^8.2.2",
+    "css-loader": "^6.8.1",
+    "style-loader": "^3.3.3"
+  }
+}
