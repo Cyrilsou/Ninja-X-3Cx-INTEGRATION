@@ -33,29 +33,8 @@ services:
       timeout: 5s
       retries: 5
 
-  # Event Receiver Service
-  event-receiver:
-    build:
-      context: ./server/event-receiver
-      dockerfile: Dockerfile
-    container_name: 3cx-event-receiver
-    environment:
-      NODE_ENV: ${NODE_ENV:-production}
-      PORT: 3001
-      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
-      REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379
-      JWT_SECRET: ${JWT_SECRET}
-      STORAGE_PATH: /app/storage
-      ENCRYPTION_KEY: ${ENCRYPTION_KEY}
-    volumes:
-      - audio_storage:/app/storage
-    networks:
-      - threecx-net
-    depends_on:
-      postgres:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
+  # Event Receiver Service (Removed - No longer needed in V2)
+  # event-receiver service has been removed as we don't use 3CX webhooks anymore
 
   # Orchestrator Service
   orchestrator:
@@ -74,7 +53,9 @@ services:
       NINJAONE_INSTANCE_URL: ${NINJAONE_INSTANCE_URL}
       WEBSOCKET_PORT: 3003
     ports:
-      - "3003:3003"
+      - "3002:3002"      # API Port
+      - "3003:3003"      # WebSocket Port  
+      - "5355:5355/udp"  # Discovery Service
     networks:
       - threecx-net
     depends_on:
@@ -137,7 +118,6 @@ services:
     networks:
       - threecx-net
     depends_on:
-      - event-receiver
       - orchestrator
       - tv-dashboard
 

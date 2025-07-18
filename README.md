@@ -1,15 +1,17 @@
-# 3CX ↔ Whisper GPU ↔ NinjaOne Integration
+# 3CX ↔ Whisper GPU ↔ NinjaOne Integration V2
 
-Système d'intégration automatique qui transcrit les appels 3CX avec Whisper AI (accéléré GPU) et crée des brouillons de tickets dans NinjaOne pour validation par les agents.
+Système d'intégration automatique avec enregistrement local des appels. Les agents Windows capturent directement l'audio, l'envoient au serveur pour transcription avec Whisper AI (accéléré GPU), puis créent des tickets dans NinjaOne après validation.
 
 ## 🚀 Caractéristiques
 
-- **Transcription GPU** : Utilise Whisper large-v3 avec RTX 3060 pour des transcriptions rapides et précises
-- **Interface de configuration Web** : Configuration complète via navigateur (plus besoin d'éditer .env)
-- **Validation humaine** : Les agents reçoivent et valident les brouillons avant création
-- **Dashboard TV temps réel** : Affichage des appels actifs et tickets récents
-- **Installation simplifiée** : Scripts automatisés pour serveur et agents
-- **Sécurité** : Chiffrement, SSL auto-signé, rétention automatique
+- **Enregistrement local** : Les agents Windows capturent l'audio directement sur leur PC
+- **Aucune modification 3CX** : Compatible avec toute installation 3CX existante
+- **Détection automatique** : Détecte les appels via le client 3CX Desktop
+- **Transcription GPU** : Utilise Whisper large-v3 avec RTX 3060 pour des transcriptions rapides
+- **Interface de configuration Web** : Configuration simple via navigateur
+- **Validation humaine** : Les agents valident les transcriptions avant création des tickets
+- **Upload résilient** : File d'attente avec retry automatique en cas d'échec
+- **Sécurité** : Chiffrement AES-256, SSL auto-signé, rétention automatique
 
 ## 📋 Prérequis
 
@@ -45,31 +47,31 @@ Le script va :
 ### 2. Configuration via interface web
 
 1. Accéder à `http://IP_SERVEUR:8080`
-2. Remplir tous les champs de configuration :
-   - Identifiants base de données
-   - API 3CX (URL et clé)
-   - API NinjaOne (OAuth)
+2. Remplir les champs de configuration :
+   - Identifiants base de données (pré-remplis)
+   - API NinjaOne (Client ID et Secret)
    - Modèle Whisper
 3. Cliquer sur "Générer des clés aléatoires" pour la sécurité
 4. Enregistrer et démarrer les services
 
-### 3. Configuration 3CX
+### 3. Aucune configuration 3CX requise
 
-Dans l'interface 3CX :
-1. **Integrations** → **API**
-2. Ajouter webhook : `https://IP_SERVEUR/webhook/call-end`
-3. Utiliser la clé API configurée
+L'architecture V2 fonctionne sans modification de 3CX. Les agents détectent automatiquement les appels.
 
-### 4. Installation des agents
+### 3. Installation des agents Windows
 
-Sur chaque poste Windows :
+Sur chaque poste agent :
 
 ```powershell
-# Méthode 1 : Double-clic sur install-agent-windows.bat
-
-# Méthode 2 : PowerShell avec paramètres
+# Exécuter en tant qu'administrateur
 .\install-agent-windows.ps1 -ServerIP "192.168.1.100" -Extension "101" -AgentName "Jean Dupont"
 ```
+
+L'agent :
+- Vérifie la présence de 3CX Desktop
+- Installe Sox pour l'enregistrement audio
+- Configure la connexion au serveur
+- S'ajoute au démarrage Windows (optionnel)
 
 ## 💻 Utilisation
 

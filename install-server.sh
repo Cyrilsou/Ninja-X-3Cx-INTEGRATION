@@ -216,7 +216,9 @@ if command -v ufw &> /dev/null; then
     ufw allow 80/tcp    # HTTP
     ufw allow 443/tcp   # HTTPS
     ufw allow 8080/tcp  # Config UI
+    ufw allow 3002/tcp  # API
     ufw allow 3003/tcp  # WebSocket
+    ufw allow 5355/udp  # Discovery
     ufw --force enable
 fi
 
