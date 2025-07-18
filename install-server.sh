@@ -49,14 +49,14 @@ if ! command -v docker &> /dev/null; then
     curl -fsSL https://download.docker.com/linux/ubuntu/gpg | gpg --dearmor -o /usr/share/keyrings/docker-archive-keyring.gpg
     echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/docker-archive-keyring.gpg] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable" | tee /etc/apt/sources.list.d/docker.list > /dev/null
     apt-get update
-    apt-get install -y docker-ce docker-ce-cli containerd.io docker-compose-plugin
+    apt-get install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
     systemctl enable docker
     systemctl start docker
 else
     print_info "Docker already installed"
 fi
 
-# Install Docker Compose
+# Install Docker Compose standalone
 if ! command -v docker-compose &> /dev/null; then
     print_info "Installing Docker Compose..."
     curl -L "https://github.com/docker/compose/releases/download/v2.23.0/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
@@ -70,17 +70,32 @@ print_info "Checking for NVIDIA GPU..."
 if lspci | grep -i nvidia > /dev/null; then
     print_info "NVIDIA GPU detected, installing drivers..."
     
-    # Add NVIDIA repository
-    add-apt-repository -y ppa:graphics-drivers/ppa
-    apt-get update
+    # Check if NVIDIA driver is already installed
+    if ! nvidia-smi &> /dev/null; then
+        # Install NVIDIA driver
+        print_info "Installing NVIDIA driver..."
+        apt-get install -y nvidia-driver-550
+        print_warning "NVIDIA driver installed. A reboot may be required."
+    else
+        print_info "NVIDIA driver already installed"
+        nvidia-smi
+    fi
     
-    # Install recommended driver
-    ubuntu-drivers autoinstall
+    # Install NVIDIA Container Toolkit for Ubuntu 24.04
+    print_info "Installing NVIDIA Container Toolkit..."
     
-    # Install NVIDIA container toolkit
-    distribution=$(. /etc/os-release;echo $ID$VERSION_ID)
-    curl -s -L https://nvidia.github.io/nvidia-docker/gpgkey | apt-key add -
-    curl -s -L https://nvidia.github.io/nvidia-docker/$distribution/nvidia-docker.list | tee /etc/apt/sources.list.d/nvidia-docker.list
+    # Remove old nvidia-docker packages if they exist
+    apt-get remove -y nvidia-docker nvidia-docker2 nvidia-container-runtime || true
+    
+    # Add NVIDIA Container Toolkit repository
+    curl -fsSL https://nvidia.github.io/libnvidia-container/gpgkey | gpg --dearmor -o /usr/share/keyrings/nvidia-container-toolkit-keyring.gpg
+    
+    # Create the repository configuration
+    distribution=ubuntu22.04  # Use 22.04 repo for 24.04 as it's compatible
+    curl -s -L https://nvidia.github.io/libnvidia-container/$distribution/libnvidia-container.list | \
+        sed 's#deb https://#deb [signed-by=/usr/share/keyrings/nvidia-container-toolkit-keyring.gpg] https://#g' | \
+        tee /etc/apt/sources.list.d/nvidia-container-toolkit.list
+    
     apt-get update
     apt-get install -y nvidia-container-toolkit
     
@@ -89,11 +104,12 @@ if lspci | grep -i nvidia > /dev/null; then
     systemctl restart docker
     
     # Test NVIDIA runtime
+    print_info "Testing NVIDIA GPU in Docker..."
     if docker run --rm --gpus all nvidia/cuda:12.2.0-base-ubuntu22.04 nvidia-smi > /dev/null 2>&1; then
         print_info "NVIDIA GPU setup successful"
     else
-        print_error "NVIDIA GPU setup failed. Please check drivers and reboot."
-        exit 1
+        print_warning "NVIDIA GPU test failed. You may need to reboot the system."
+        print_warning "After reboot, run: docker run --rm --gpus all nvidia/cuda:12.2.0-base-ubuntu22.04 nvidia-smi"
     fi
 else
     print_error "No NVIDIA GPU detected. This system requires an NVIDIA GPU for Whisper."
@@ -116,8 +132,10 @@ mkdir -p server/{event-receiver,orchestrator,whisper-worker,tv-dashboard,nginx,s
 mkdir -p electron-client
 
 # Copy files from current directory if they exist
-if [ -d "/tmp/3cx-whisper-ninjaone" ]; then
-    cp -r /tmp/3cx-whisper-ninjaone/* .
+SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+if [ -d "$SCRIPT_DIR/server" ]; then
+    print_info "Copying project files..."
+    cp -r "$SCRIPT_DIR"/* "$INSTALL_DIR/"
 fi
 
 # Create data directories
@@ -130,36 +148,16 @@ chmod -R 755 /var/lib/3cx-integration
 # Generate self-signed SSL certificate
 print_info "Generating self-signed SSL certificate..."
 mkdir -p server/nginx/ssl
+SERVER_IP=$(hostname -I | awk '{print $1}')
 openssl req -x509 -nodes -days 365 -newkey rsa:2048 \
     -keyout server/nginx/ssl/privkey.pem \
     -out server/nginx/ssl/fullchain.pem \
-    -subj "/C=US/ST=State/L=City/O=Organization/CN=$(hostname -I | awk '{print $1}')"
+    -subj "/C=US/ST=State/L=City/O=Organization/CN=$SERVER_IP" \
+    2>/dev/null
 
-# Update nginx configuration to use IP instead of domain
-SERVER_IP=$(hostname -I | awk '{print $1}')
 print_info "Server IP: $SERVER_IP"
 
-# Create systemd service for configuration UI
-print_info "Creating systemd service..."
-cat > /etc/systemd/system/3cx-config.service << EOF
-[Unit]
-Description=3CX-Whisper-NinjaOne Configuration UI
-After=docker.service
-Requires=docker.service
-
-[Service]
-Type=simple
-WorkingDirectory=$INSTALL_DIR
-ExecStart=/usr/local/bin/docker-compose -f docker-compose.config.yml up
-ExecStop=/usr/local/bin/docker-compose -f docker-compose.config.yml down
-Restart=on-failure
-RestartSec=10
-
-[Install]
-WantedBy=multi-user.target
-EOF
-
-# Create docker-compose for config UI
+# Create docker-compose for config UI only
 cat > $INSTALL_DIR/docker-compose.config.yml << EOF
 version: '3.8'
 
@@ -177,11 +175,31 @@ services:
     restart: unless-stopped
 EOF
 
-# Enable and start configuration service
-systemctl daemon-reload
-systemctl enable 3cx-config.service
+# Create systemd service for main stack
+print_info "Creating systemd service..."
+cat > /etc/systemd/system/3cx-whisper.service << EOF
+[Unit]
+Description=3CX-Whisper-NinjaOne Stack
+After=docker.service
+Requires=docker.service
 
-# Create firewall rules
+[Service]
+Type=simple
+WorkingDirectory=$INSTALL_DIR
+ExecStart=/usr/local/bin/docker-compose up
+ExecStop=/usr/local/bin/docker-compose down
+Restart=on-failure
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+# Enable service (but don't start it yet)
+systemctl daemon-reload
+systemctl enable 3cx-whisper.service
+
+# Configure firewall
 print_info "Configuring firewall..."
 if command -v ufw &> /dev/null; then
     ufw allow 22/tcp    # SSH
@@ -199,6 +217,10 @@ print_info "Creating helper scripts..."
 cat > $INSTALL_DIR/start.sh << 'EOF'
 #!/bin/bash
 cd /opt/3cx-whisper-ninjaone
+if [ ! -f .env ]; then
+    echo "ERROR: Configuration not found. Please access http://$(hostname -I | awk '{print $1}'):8080 to configure."
+    exit 1
+fi
 docker-compose up -d
 echo "Services started. Check status with: docker-compose ps"
 EOF
@@ -229,6 +251,20 @@ docker-compose logs -f --tail=100
 EOF
 chmod +x $INSTALL_DIR/logs.sh
 
+# Build and start config UI
+print_info "Building configuration UI..."
+cd $INSTALL_DIR
+docker-compose -f docker-compose.config.yml build
+docker-compose -f docker-compose.config.yml up -d
+
+# Check if NVIDIA driver needs a reboot
+if ! nvidia-smi &> /dev/null; then
+    print_warning "NVIDIA driver was installed but requires a system reboot."
+    NEEDS_REBOOT=true
+else
+    NEEDS_REBOOT=false
+fi
+
 # Installation complete
 print_info "Installation complete!"
 echo ""
@@ -236,7 +272,7 @@ echo "========================================"
 echo "Next steps:"
 echo "1. Access configuration UI: http://$SERVER_IP:8080"
 echo "2. Configure all settings in the web interface"
-echo "3. Start services from the web interface"
+echo "3. Start services from the web interface or using ./start.sh"
 echo ""
 echo "Useful commands:"
 echo "- Start services: $INSTALL_DIR/start.sh"
@@ -247,8 +283,16 @@ echo ""
 echo "3CX Webhook URL: https://$SERVER_IP/webhook/call-end"
 echo "========================================"
 
-# Start config UI
-print_info "Starting configuration UI..."
-systemctl start 3cx-config.service
-
-print_info "Setup complete! Access http://$SERVER_IP:8080 to continue."
+if [ "$NEEDS_REBOOT" = true ]; then
+    echo ""
+    print_warning "IMPORTANT: System reboot required for NVIDIA driver!"
+    print_warning "Please reboot the system and then access http://$SERVER_IP:8080"
+    echo ""
+    read -p "Reboot now? (y/n) " -n 1 -r
+    echo
+    if [[ $REPLY =~ ^[Yy]$ ]]; then
+        reboot
+    fi
+else
+    print_info "Configuration UI is running at http://$SERVER_IP:8080"
+fi
