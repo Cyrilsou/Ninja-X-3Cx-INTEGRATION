@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# 3CX-Whisper-NinjaOne Server Installation Script
+# 3CX-Whisper-NinjaOne Server Installation Script v2
 # For Ubuntu 24 LTS with NVIDIA GPU
 
 set -e
@@ -22,7 +22,7 @@ if [[ $EUID -ne 0 ]]; then
    exit 1
 fi
 
-print_info "Starting 3CX-Whisper-NinjaOne Server Installation"
+print_info "Starting 3CX-Whisper-NinjaOne Server Installation v2"
 echo "================================================"
 
 # Update system
@@ -46,7 +46,7 @@ apt-get install -y \
 # Install Docker
 if ! command -v docker &> /dev/null; then
     print_info "Installing Docker..."
-    curl -fsSL https://download.docker.com/linux/ubuntu/gpg | gpg --dearmor -o /usr/share/keyrings/docker-archive-keyring.gpg
+    curl -fsSL https://download.docker.com/linux/ubuntu/gpg | gpg --dearmor -o /usr/share/keyrings/docker-archive-keyring.gpg --yes
     echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/docker-archive-keyring.gpg] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable" | tee /etc/apt/sources.list.d/docker.list > /dev/null
     apt-get update
     apt-get install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
@@ -85,16 +85,19 @@ if lspci | grep -i nvidia > /dev/null; then
     print_info "Installing NVIDIA Container Toolkit..."
     
     # Remove old nvidia-docker packages if they exist
-    apt-get remove -y nvidia-docker nvidia-docker2 nvidia-container-runtime || true
+    apt-get remove -y nvidia-docker nvidia-docker2 nvidia-container-runtime 2>/dev/null || true
+    
+    # Remove existing gpg key if present
+    rm -f /usr/share/keyrings/nvidia-container-toolkit-keyring.gpg
     
     # Add NVIDIA Container Toolkit repository
-    curl -fsSL https://nvidia.github.io/libnvidia-container/gpgkey | gpg --dearmor -o /usr/share/keyrings/nvidia-container-toolkit-keyring.gpg --yes
+    curl -fsSL https://nvidia.github.io/libnvidia-container/gpgkey | gpg --dearmor -o /usr/share/keyrings/nvidia-container-toolkit-keyring.gpg
     
     # Create the repository configuration
     distribution=ubuntu22.04  # Use 22.04 repo for 24.04 as it's compatible
     curl -s -L https://nvidia.github.io/libnvidia-container/$distribution/libnvidia-container.list | \
         sed 's#deb https://#deb [signed-by=/usr/share/keyrings/nvidia-container-toolkit-keyring.gpg] https://#g' | \
-        tee /etc/apt/sources.list.d/nvidia-container-toolkit.list
+        tee /etc/apt/sources.list.d/nvidia-container-toolkit.list > /dev/null
     
     apt-get update
     apt-get install -y nvidia-container-toolkit
@@ -131,8 +134,8 @@ else
     # Check if project files exist in current directory
     if [ -d "$SCRIPT_DIR/server" ] && [ -f "$SCRIPT_DIR/docker-compose.yml" ]; then
         print_info "Copying project files from $SCRIPT_DIR to $INSTALL_DIR..."
-        # Copy all files except the install script itself
-        find "$SCRIPT_DIR" -mindepth 1 -maxdepth 1 ! -name "$(basename $0)" -exec cp -r {} "$INSTALL_DIR/" \;
+        # Copy all files except the install scripts
+        find "$SCRIPT_DIR" -mindepth 1 -maxdepth 1 ! -name "install-*.sh" -exec cp -r {} "$INSTALL_DIR/" \;
     else
         print_warning "Project files not found in current directory"
         print_info "Creating directory structure..."
@@ -267,16 +270,36 @@ if [ ! -d "$INSTALL_DIR/server/config-ui" ]; then
     exit 1
 fi
 
-# Build with --no-cache to ensure fresh build
+# Clean any existing containers
+docker-compose -f docker-compose.config.yml down 2>/dev/null || true
+
+# Build with progress output
 print_info "This may take a few minutes..."
-docker-compose -f docker-compose.config.yml build --no-cache
-if [ $? -ne 0 ]; then
+if ! docker-compose -f docker-compose.config.yml build; then
     print_error "Failed to build configuration UI"
-    print_error "Please check Docker logs for details"
+    print_error "Attempting rebuild without cache..."
+    docker-compose -f docker-compose.config.yml build --no-cache
+fi
+
+# Start config UI
+if ! docker-compose -f docker-compose.config.yml up -d; then
+    print_error "Failed to start configuration UI"
+    print_error "Check logs with: docker-compose -f docker-compose.config.yml logs"
     exit 1
 fi
 
-docker-compose -f docker-compose.config.yml up -d
+# Wait for config UI to be ready
+print_info "Waiting for configuration UI to start..."
+sleep 5
+
+# Check if config UI is running
+if docker ps | grep -q 3cx-config-ui; then
+    print_info "Configuration UI is running"
+else
+    print_error "Configuration UI failed to start"
+    print_error "Check logs with: docker-compose -f docker-compose.config.yml logs"
+    exit 1
+fi
 
 # Check if NVIDIA driver needs a reboot
 if ! nvidia-smi &> /dev/null; then
