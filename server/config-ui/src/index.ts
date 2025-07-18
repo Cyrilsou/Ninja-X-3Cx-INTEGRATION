@@ -150,22 +150,39 @@ app.post('/api/config', async (req, res) => {
     };
     
     // Generate .env file content
-    // Escape $ characters in values to prevent docker-compose interpolation
-    const envContent = Object.entries(config)
-      .map(([key, value]) => {
-        // Validate key doesn't contain invalid characters
-        if (!/^[A-Z_][A-Z0-9_]*$/.test(key)) {
-          console.error(`Invalid environment variable name: ${key}`);
-          throw new Error(`Invalid environment variable name: ${key}`);
-        }
-        
-        // Convert value to string and escape $ characters
-        const escapedValue = String(value).replace(/\$/g, '$$');
-        
-        // Always quote values to be safe
-        return `${key}="${escapedValue}"`;
-      })
-      .join('\n');
+    const envLines: string[] = [];
+    
+    for (const [key, value] of Object.entries(config)) {
+      // Validate key doesn't contain invalid characters
+      if (!/^[A-Z_][A-Z0-9_]*$/.test(key)) {
+        console.error(`Invalid environment variable name: ${key}`);
+        throw new Error(`Invalid environment variable name: ${key}`);
+      }
+      
+      // Convert value to string
+      let stringValue = String(value);
+      
+      // Escape special characters
+      // Replace $ with $$ for docker-compose
+      stringValue = stringValue.replace(/\$/g, '$$');
+      
+      // For values containing special characters, use single quotes
+      // This prevents any shell interpretation
+      if (stringValue.includes('"') || stringValue.includes("'") || stringValue.includes(' ') || 
+          stringValue.includes('\n') || stringValue.includes('\\')) {
+        // Escape single quotes by replacing ' with '\''
+        stringValue = stringValue.replace(/'/g, "'\\''");
+        envLines.push(`${key}='${stringValue}'`);
+      } else if (stringValue.includes('://') || stringValue.includes('/')) {
+        // URLs and paths: use quotes without escaping
+        envLines.push(`${key}="${stringValue}"`);
+      } else {
+        // Simple values don't need quotes
+        envLines.push(`${key}=${stringValue}`);
+      }
+    }
+    
+    const envContent = envLines.join('\n');
     
     // Write .env file
     try {
@@ -193,12 +210,21 @@ app.post('/api/config', async (req, res) => {
       console.log(`Configuration saved to: ${ENV_FILE_PATH}`);
       
       // Log the content for debugging
-      console.log('ENV file content preview (first 200 chars):');
-      console.log(envContent.substring(0, 200) + '...');
+      console.log('ENV file content preview:');
+      const lines = envContent.split('\n');
+      lines.forEach((line, index) => {
+        console.log(`Line ${index + 1}: ${line}`);
+      });
       
       // Verify the file was written
       const stats = await fs.stat(ENV_FILE_PATH);
       console.log(`File size: ${stats.size} bytes`);
+      
+      // Read back and verify
+      const writtenContent = await fs.readFile(ENV_FILE_PATH, 'utf8');
+      if (writtenContent !== envContent) {
+        console.error('WARNING: Written content differs from expected content');
+      }
     } catch (writeError: any) {
       console.error('Error writing .env file:', writeError);
       console.error('ENV_FILE_PATH:', ENV_FILE_PATH);
@@ -322,17 +348,25 @@ app.post('/api/services/start', async (req, res) => {
       return res.status(500).json({ message: 'docker-compose.yml not found in project root' });
     }
     
+    // Verify .env file exists and is readable
+    const envPath = path.join(projectDir, '.env');
+    try {
+      const envCheck = await fs.readFile(envPath, 'utf8');
+      console.log(`ENV file exists at ${envPath}, ${envCheck.split('\n').length} lines`);
+    } catch (err) {
+      console.error(`Cannot read .env file at ${envPath}:`, err);
+      return res.status(500).json({ message: 'Environment file not found or not readable' });
+    }
+    
     // Docker-compose will automatically read .env from the working directory
     console.log(`Starting docker-compose from directory: ${projectDir}`);
     
-    // Simple command without --env-file since .env is in the working directory
-    const dockerCmd = `docker-compose -f docker-compose.yml up -d`;
-    console.log(`Executing: ${dockerCmd}`);
-    
-    const result = execSync(dockerCmd, { 
+    // Use a simpler approach - let docker-compose find .env automatically
+    const result = execSync('docker-compose up -d', { 
       stdio: 'pipe',
       cwd: projectDir,
-      encoding: 'utf8'
+      encoding: 'utf8',
+      env: { ...process.env, PATH: process.env.PATH }
     });
     
     console.log('Docker compose output:', result);
@@ -348,10 +382,10 @@ app.post('/api/services/stop', async (req, res) => {
   try {
     const projectDir = PROJECT_ROOT;
     
-    const dockerCmd = `docker-compose -f docker-compose.yml down`;
-    execSync(dockerCmd, { 
+    execSync('docker-compose down', { 
       stdio: 'pipe',
-      cwd: projectDir
+      cwd: projectDir,
+      encoding: 'utf8'
     });
     
     res.json({ success: true });
