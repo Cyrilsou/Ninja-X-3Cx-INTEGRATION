@@ -188,8 +188,8 @@ app.get('/api/services/status', async (req, res) => {
   try {
     // Check Docker services
     const dockerOutput = execSync('docker ps --format "{{json .}}"', { 
-      stdio: 'pipe' 
-    }).toString();
+      encoding: 'utf8'
+    });
     
     const containers = dockerOutput.split('\n').filter(line => line.trim()).map(line => {
       try {
@@ -241,8 +241,8 @@ app.post('/api/services/start', async (req, res) => {
     // Start services using the correct docker-compose file
     const projectDir = path.join(__dirname, '../../..');
     execSync(`cd ${projectDir} && docker-compose -f docker-compose.yml up -d`, { 
-      shell: true,
-      stdio: 'pipe'
+      stdio: 'pipe',
+      cwd: projectDir
     });
     
     res.json({ success: true });
@@ -256,8 +256,8 @@ app.post('/api/services/stop', async (req, res) => {
   try {
     const projectDir = path.join(__dirname, '../../..');
     execSync(`cd ${projectDir} && docker-compose -f docker-compose.yml down`, { 
-      shell: true,
-      stdio: 'pipe'
+      stdio: 'pipe',
+      cwd: projectDir
     });
     
     res.json({ success: true });
