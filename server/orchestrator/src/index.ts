@@ -7,11 +7,13 @@ import { logger } from './utils/logger';
 import { errorHandler } from './middleware/errorHandler';
 import { healthRouter } from './routes/health';
 import { authRouter } from './routes/auth';
+import uploadRouter from './routes/upload';
 import { DatabaseService } from './services/database';
 import { QueueService } from './services/queue';
 import { WebSocketService } from './services/websocket';
 import { NinjaOneService } from './services/ninjaone';
 import { DraftProcessor } from './services/draftProcessor';
+import { DiscoveryService } from './services/discovery';
 
 const app = express();
 
@@ -24,8 +26,8 @@ app.use(cors({
 }));
 
 // Body parsing
-app.use(express.json({ limit: '10mb' }));
-app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+app.use(express.json({ limit: '100mb' }));
+app.use(express.urlencoded({ extended: true, limit: '100mb' }));
 
 // Request logging
 app.use((req, res, next) => {
@@ -41,6 +43,7 @@ app.use((req, res, next) => {
 // Routes
 app.use('/health', healthRouter);
 app.use('/auth', authRouter);
+app.use('/', uploadRouter);
 
 // Error handling
 app.use(errorHandler);
@@ -68,10 +71,16 @@ async function startServer() {
     DraftProcessor.getInstance();
     logger.info('Draft processor initialized');
 
+    // Initialize Discovery Service
+    const discoveryService = new DiscoveryService();
+    discoveryService.start();
+    logger.info('Discovery service started');
+
     // Start HTTP server
     const server = app.listen(config.PORT, () => {
       logger.info(`Orchestrator running on port ${config.PORT}`);
       logger.info(`WebSocket server running on port ${config.WEBSOCKET_PORT}`);
+      logger.info('UDP Discovery broadcasting on port 5355');
     });
 
     // Graceful shutdown
@@ -84,6 +93,7 @@ async function startServer() {
 
       await QueueService.close();
       await DatabaseService.close();
+      discoveryService.stop();
       
       process.exit(0);
     });

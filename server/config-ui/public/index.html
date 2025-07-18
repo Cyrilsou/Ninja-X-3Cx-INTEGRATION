@@ -40,9 +40,14 @@
 </head>
 <body>
     <div class="container mt-4">
-        <h1 class="mb-4">
-            <i class="bi bi-gear-fill"></i> Configuration 3CX-Whisper-NinjaOne
-        </h1>
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h1>
+                <i class="bi bi-gear-fill"></i> Configuration 3CX-Whisper-NinjaOne
+            </h1>
+            <a href="/QUICK_START.md" target="_blank" class="btn btn-success">
+                <i class="bi bi-rocket-takeoff"></i> Guide de Démarrage Rapide
+            </a>
+        </div>
 
         <!-- Server Info -->
         <div class="server-info">
@@ -102,46 +107,59 @@
                 </div>
             </div>
 
-            <!-- 3CX Configuration -->
+            <!-- Architecture V2 Information -->
             <div class="config-section">
-                <h3><i class="bi bi-telephone"></i> Configuration 3CX</h3>
-                <div class="row">
+                <h3><i class="bi bi-info-circle"></i> Architecture V2 - Enregistrement Local</h3>
+                <div class="alert alert-success">
+                    <h5><i class="bi bi-check-circle"></i> Nouvelle architecture simplifiée</h5>
+                    <p>Cette version n'utilise plus l'API 3CX. Les agents Windows enregistrent directement les appels localement.</p>
+                    <ul class="mb-0">
+                        <li><strong>Aucune configuration 3CX requise</strong> - Fonctionne avec toute installation 3CX</li>
+                        <li><strong>Enregistrement local</strong> - Les agents capturent l'audio sur leur PC</li>
+                        <li><strong>Détection automatique</strong> - Détecte les appels via le client 3CX Desktop</li>
+                        <li><strong>Upload sécurisé</strong> - Envoi chiffré vers le serveur après l'appel</li>
+                    </ul>
+                </div>
+                <div class="row mt-3">
                     <div class="col-md-6">
-                        <div class="mb-3">
-                            <label for="THREECX_API_URL" class="form-label">URL API 3CX</label>
-                            <input type="url" class="form-control" id="THREECX_API_URL" name="THREECX_API_URL" placeholder="https://votre-3cx.com:5001" required>
-                        </div>
-                    </div>
-                    <div class="col-md-6">
-                        <div class="mb-3">
-                            <label for="THREECX_API_KEY" class="form-label">Clé API 3CX</label>
-                            <div class="input-group">
-                                <input type="password" class="form-control" id="THREECX_API_KEY" name="THREECX_API_KEY" required>
-                                <button class="btn btn-outline-secondary password-toggle" type="button" data-target="THREECX_API_KEY">
-                                    <i class="bi bi-eye"></i>
-                                </button>
+                        <div class="card">
+                            <div class="card-body">
+                                <h5 class="card-title"><i class="bi bi-server"></i> URL du serveur pour les agents</h5>
+                                <p class="card-text">Les agents doivent utiliser cette adresse :</p>
+                                <code class="fs-5">http://<span id="serverIpAgent"></span>:3002</code>
                             </div>
                         </div>
                     </div>
-                </div>
-                <div class="alert alert-info">
-                    <i class="bi bi-info-circle"></i> URL du webhook 3CX: <code id="webhookUrl">https://[IP_SERVEUR]/webhook/call-end</code>
+                    <div class="col-md-6">
+                        <div class="card">
+                            <div class="card-body">
+                                <h5 class="card-title"><i class="bi bi-download"></i> Installation des agents</h5>
+                                <p class="card-text">Script PowerShell pour Windows :</p>
+                                <code>./install-agent-windows.ps1</code>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
 
             <!-- NinjaOne Configuration -->
             <div class="config-section">
-                <h3><i class="bi bi-ticket"></i> Configuration NinjaOne</h3>
+                <h3><i class="bi bi-ticket"></i> Configuration NinjaOne 
+                    <div class="float-end">
+                        <a href="/NINJAONE_STEP_BY_STEP.md" target="_blank" class="btn btn-sm btn-outline-warning"><i class="bi bi-list-ol"></i> Guide Étape/Étape</a>
+                        <a href="/NINJAONE_API_SETUP.md" target="_blank" class="btn btn-sm btn-outline-info"><i class="bi bi-book"></i> Guide Détaillé</a>
+                    </div>
+                </h3>
                 <div class="row">
                     <div class="col-md-6">
                         <div class="mb-3">
-                            <label for="NINJAONE_CLIENT_ID" class="form-label">Client ID</label>
-                            <input type="text" class="form-control" id="NINJAONE_CLIENT_ID" name="NINJAONE_CLIENT_ID" required>
+                            <label for="NINJAONE_CLIENT_ID" class="form-label">Client ID <i class="bi bi-question-circle text-info" data-bs-toggle="tooltip" title="Créez une app OAuth2 dans NinjaOne: Administration → API"></i></label>
+                            <input type="text" class="form-control" id="NINJAONE_CLIENT_ID" name="NINJAONE_CLIENT_ID" placeholder="ab12cd34-ef56-78gh-90ij-klmnopqrstuv" required>
                         </div>
                     </div>
                     <div class="col-md-6">
                         <div class="mb-3">
-                            <label for="NINJAONE_CLIENT_SECRET" class="form-label">Client Secret</label>
+                            <label for="NINJAONE_CLIENT_SECRET" class="form-label">Client Secret <i class="bi bi-question-circle text-info" data-bs-toggle="tooltip" title="Copiez immédiatement après création, ne sera plus visible"></i></label>
                             <div class="input-group">
                                 <input type="password" class="form-control" id="NINJAONE_CLIENT_SECRET" name="NINJAONE_CLIENT_SECRET" required>
                                 <button class="btn btn-outline-secondary password-toggle" type="button" data-target="NINJAONE_CLIENT_SECRET">
@@ -152,8 +170,13 @@
                     </div>
                     <div class="col-12">
                         <div class="mb-3">
-                            <label for="NINJAONE_INSTANCE_URL" class="form-label">URL Instance NinjaOne</label>
-                            <input type="url" class="form-control" id="NINJAONE_INSTANCE_URL" name="NINJAONE_INSTANCE_URL" placeholder="https://votre-instance.ninjarmm.com" required>
+                            <label for="NINJAONE_INSTANCE_URL" class="form-label">URL Instance NinjaOne <i class="bi bi-question-circle text-info" data-bs-toggle="tooltip" title="US: app.ninjarmm.com | EU: eu.ninjarmm.com | CA: ca.ninjarmm.com"></i></label>
+                            <input type="url" class="form-control" id="NINJAONE_INSTANCE_URL" name="NINJAONE_INSTANCE_URL" placeholder="https://app.ninjarmm.com" required>
+                            <small class="text-muted">Régions: US (app), EU (eu), CA (ca), OC (oc) ou instance personnalisée</small>
+                            <div class="alert alert-warning mt-2">
+                                <i class="bi bi-exclamation-triangle"></i> <strong>Redirect URI à utiliser dans NinjaOne :</strong> <code>https://localhost</code>
+                                <br><small>Cette URI est obligatoire même si elle n'est pas utilisée avec Client Credentials</small>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -165,13 +188,13 @@
                 <div class="row">
                     <div class="col-md-6">
                         <div class="mb-3">
-                            <label for="WHISPER_MODEL" class="form-label">Modèle Whisper</label>
+                            <label for="WHISPER_MODEL" class="form-label">Modèle Whisper <i class="bi bi-question-circle text-info" data-bs-toggle="tooltip" title="RTX 3060 (12GB): utilisez large-v3 pour meilleure précision"></i></label>
                             <select class="form-select" id="WHISPER_MODEL" name="WHISPER_MODEL">
                                 <option value="tiny">Tiny (Très rapide, moins précis)</option>
                                 <option value="base">Base (Rapide)</option>
                                 <option value="small">Small (Équilibré)</option>
                                 <option value="medium">Medium (Bonne précision)</option>
-                                <option value="large-v3" selected>Large-v3 (Meilleure précision)</option>
+                                <option value="large-v3" selected>Large-v3 (Meilleure précision - RTX 3060+)</option>
                             </select>
                         </div>
                     </div>
@@ -247,13 +270,20 @@
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script>
+        // Initialize Bootstrap tooltips
+        document.addEventListener('DOMContentLoaded', function() {
+            var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+            var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
+                return new bootstrap.Tooltip(tooltipTriggerEl);
+            });
+        });
         // Get server IP
         async function getServerInfo() {
             try {
                 const response = await fetch('/api/server-info');
                 const data = await response.json();
                 document.getElementById('serverIp').textContent = data.ip;
-                document.getElementById('webhookUrl').textContent = `https://${data.ip}/webhook/call-end`;
+                document.getElementById('serverIpAgent').textContent = data.ip;
             } catch (error) {
                 console.error('Error fetching server info:', error);
             }
@@ -377,7 +407,7 @@
         document.getElementById('startServices').addEventListener('click', async () => {
             if (!confirm('Êtes-vous sûr de vouloir démarrer tous les services ?')) return;
             
-            showAlert('Démarrage des services...', 'info');
+            showAlert('Démarrage des services en cours... Cela peut prendre quelques minutes.', 'warning');
             
             try {
                 const response = await fetch('/api/services/start', {
@@ -385,14 +415,17 @@
                 });
                 
                 if (response.ok) {
-                    showAlert('Services démarrés avec succès', 'success');
-                    setTimeout(() => checkServiceStatus(), 5000);
+                    showAlert('Commande de démarrage envoyée. Vérification du statut dans 10 secondes...', 'info');
+                    setTimeout(() => {
+                        checkServiceStatus();
+                        showAlert('Services démarrés. Si certains services sont encore hors ligne, attendez quelques secondes et rafraîchissez.', 'success');
+                    }, 10000);
                 } else {
                     const error = await response.json();
-                    showAlert(`Erreur: ${error.message}`, 'danger');
+                    showAlert(`Erreur: ${error.message}. Vérifiez que Docker est installé et que le fichier .env existe.`, 'danger');
                 }
             } catch (error) {
-                showAlert(`Erreur: ${error.message}`, 'danger');
+                showAlert(`Erreur de connexion: ${error.message}. Vérifiez que le serveur de configuration est accessible.`, 'danger');
             }
         });
 

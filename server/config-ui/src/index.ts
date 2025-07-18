@@ -1,6 +1,7 @@
 import express from 'express';
 import path from 'path';
 import fs from 'fs/promises';
+import { existsSync } from 'fs';
 import { execSync } from 'child_process';
 import dotenv from 'dotenv';
 import cors from 'cors';
@@ -15,6 +16,30 @@ app.use(cors());
 app.use(express.json());
 app.use(express.static(path.join(__dirname, '../public')));
 
+// Serve markdown documentation files
+app.get('/*.md', async (req, res) => {
+  const filename = req.path.slice(1); // Remove leading slash
+  const projectRoot = path.join(__dirname, '../../../');
+  const filePath = path.join(projectRoot, filename);
+  
+  // Security: prevent directory traversal
+  if (!filePath.startsWith(projectRoot) || filePath.includes('..')) {
+    return res.status(403).send('Forbidden');
+  }
+  
+  try {
+    if (existsSync(filePath)) {
+      const content = await fs.readFile(filePath, 'utf-8');
+      res.type('text/plain; charset=utf-8');
+      res.send(content);
+    } else {
+      res.status(404).send('File not found');
+    }
+  } catch (error) {
+    res.status(500).send('Error reading file');
+  }
+});
+
 // Configuration schema
 const configSchema = Joi.object({
   // Database
@@ -22,10 +47,6 @@ const configSchema = Joi.object({
   POSTGRES_USER: Joi.string().required(),
   POSTGRES_PASSWORD: Joi.string().min(8).required(),
   REDIS_PASSWORD: Joi.string().min(8).required(),
-  
-  // 3CX
-  THREECX_API_URL: Joi.string().uri().required(),
-  THREECX_API_KEY: Joi.string().required(),
   
   // NinjaOne
   NINJAONE_CLIENT_ID: Joi.string().required(),
@@ -148,8 +169,8 @@ app.post('/api/test-connections', async (req, res) => {
       results.redis = { success: false, error: 'Connection failed' };
     }
     
-    // Test 3CX API (basic connectivity)
-    results.threecx = { success: true, error: 'Manual verification required' };
+    // No 3CX test needed in V2 architecture
+    results.agents = { success: true, error: 'Agents connect directly via WebSocket' };
     
     // Test NinjaOne API (basic connectivity)
     results.ninjaone = { success: true, error: 'Manual verification required' };
@@ -166,8 +187,7 @@ app.get('/api/services/status', async (req, res) => {
   
   try {
     // Check Docker services
-    const dockerOutput = execSync('docker-compose ps --format json', { 
-      cwd: path.join(__dirname, '../../..'),
+    const dockerOutput = execSync('docker ps --format "{{json .}}"', { 
       stdio: 'pipe' 
     }).toString();
     
@@ -179,31 +199,28 @@ app.get('/api/services/status', async (req, res) => {
       }
     }).filter(Boolean);
     
-    // Map container status
+    // Map container status by container name
     services['PostgreSQL'] = { 
-      running: containers.some(c => c.Service === 'postgres' && c.State === 'running') 
+      running: containers.some(c => c.Names && c.Names.includes('3cx-postgres')) 
     };
     services['Redis'] = { 
-      running: containers.some(c => c.Service === 'redis' && c.State === 'running') 
+      running: containers.some(c => c.Names && c.Names.includes('3cx-redis')) 
     };
-    services['Event Receiver'] = { 
-      running: containers.some(c => c.Service === 'event-receiver' && c.State === 'running') 
-    };
+    // Event Receiver removed in V2 - agents record locally
     services['Orchestrator'] = { 
-      running: containers.some(c => c.Service === 'orchestrator' && c.State === 'running') 
+      running: containers.some(c => c.Names && c.Names.includes('3cx-orchestrator')) 
     };
     services['Whisper Worker'] = { 
-      running: containers.some(c => c.Service === 'whisper-worker' && c.State === 'running') 
+      running: containers.some(c => c.Names && c.Names.includes('3cx-whisper-worker')) 
     };
     services['TV Dashboard'] = { 
-      running: containers.some(c => c.Service === 'tv-dashboard' && c.State === 'running') 
+      running: containers.some(c => c.Names && c.Names.includes('3cx-tv-dashboard')) 
     };
     
   } catch (error) {
     // If docker-compose is not running, all services are down
     services['PostgreSQL'] = { running: false };
     services['Redis'] = { running: false };
-    services['Event Receiver'] = { running: false };
     services['Orchestrator'] = { running: false };
     services['Whisper Worker'] = { running: false };
     services['TV Dashboard'] = { running: false };
@@ -221,9 +238,10 @@ app.post('/api/services/start', async (req, res) => {
       return res.status(400).json({ message: 'Configuration not found. Please save configuration first.' });
     }
     
-    // Start services
-    execSync('docker-compose up -d', { 
-      cwd: path.join(__dirname, '../../..'),
+    // Start services using the correct docker-compose file
+    const projectDir = path.join(__dirname, '../../..');
+    execSync(`cd ${projectDir} && docker-compose -f docker-compose.yml up -d`, { 
+      shell: true,
       stdio: 'pipe'
     });
     
@@ -236,8 +254,9 @@ app.post('/api/services/start', async (req, res) => {
 
 app.post('/api/services/stop', async (req, res) => {
   try {
-    execSync('docker-compose down', { 
-      cwd: path.join(__dirname, '../../..'),
+    const projectDir = path.join(__dirname, '../../..');
+    execSync(`cd ${projectDir} && docker-compose -f docker-compose.yml down`, { 
+      shell: true,
       stdio: 'pipe'
     });
     

@@ -37,7 +37,7 @@ CREATE TABLE integration.calls (
     duration INTEGER NOT NULL,
     start_time TIMESTAMP WITH TIME ZONE NOT NULL,
     end_time TIMESTAMP WITH TIME ZONE NOT NULL,
-    recording_url TEXT,
+    -- recording_url TEXT, -- Obsolete in V2: recordings are uploaded directly
     local_recording_path TEXT,
     transcript TEXT,
     status integration.call_status DEFAULT 'RECEIVED',
