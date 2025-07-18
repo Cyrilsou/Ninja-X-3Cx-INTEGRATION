@@ -150,8 +150,17 @@ app.post('/api/config', async (req, res) => {
     };
     
     // Generate .env file content
+    // Escape $ characters in values to prevent docker-compose interpolation
     const envContent = Object.entries(config)
-      .map(([key, value]) => `${key}=${value}`)
+      .map(([key, value]) => {
+        // Convert value to string and escape $ characters
+        const escapedValue = String(value).replace(/\$/g, '$$');
+        // Quote values that contain special characters or spaces
+        if (escapedValue.includes(' ') || escapedValue.includes('#') || escapedValue.includes('=')) {
+          return `${key}="${escapedValue}"`;
+        }
+        return `${key}=${escapedValue}`;
+      })
       .join('\n');
     
     // Write .env file
@@ -178,6 +187,10 @@ app.post('/api/config', async (req, res) => {
       
       await fs.writeFile(ENV_FILE_PATH, envContent, { mode: 0o666 });
       console.log(`Configuration saved to: ${ENV_FILE_PATH}`);
+      
+      // Log the content for debugging
+      console.log('ENV file content preview (first 200 chars):');
+      console.log(envContent.substring(0, 200) + '...');
       
       // Verify the file was written
       const stats = await fs.stat(ENV_FILE_PATH);
@@ -305,7 +318,9 @@ app.post('/api/services/start', async (req, res) => {
       return res.status(500).json({ message: 'docker-compose.yml not found in project root' });
     }
     
-    const result = execSync(`docker-compose -f docker-compose.yml up -d`, { 
+    // Use --env-file to explicitly specify the .env file location
+    const envFilePath = path.join(projectDir, '.env');
+    const result = execSync(`docker-compose --env-file "${envFilePath}" -f docker-compose.yml up -d`, { 
       stdio: 'pipe',
       cwd: projectDir,
       encoding: 'utf8'
@@ -323,7 +338,8 @@ app.post('/api/services/start', async (req, res) => {
 app.post('/api/services/stop', async (req, res) => {
   try {
     const projectDir = PROJECT_ROOT;
-    execSync(`cd ${projectDir} && docker-compose -f docker-compose.yml down`, { 
+    const envFilePath = path.join(projectDir, '.env');
+    execSync(`docker-compose --env-file "${envFilePath}" -f docker-compose.yml down`, { 
       stdio: 'pipe',
       cwd: projectDir
     });
