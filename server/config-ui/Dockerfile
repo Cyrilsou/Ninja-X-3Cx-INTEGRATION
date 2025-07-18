@@ -19,6 +19,12 @@ RUN npm install --only=production
 COPY --from=builder /app/dist ./dist
 COPY public ./public
 
+# Create the project directory and set permissions
+RUN mkdir -p /project && chmod -R 777 /project
+
 EXPOSE 8080
+
+# Run as root to ensure write permissions
+USER root
 
 CMD ["node", "dist/index.js"]

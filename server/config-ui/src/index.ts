@@ -139,13 +139,35 @@ app.post('/api/config', async (req, res) => {
       .join('\n');
     
     // Write .env file
-    await fs.writeFile(ENV_FILE_PATH, envContent);
-    console.log(`Configuration saved to: ${ENV_FILE_PATH}`);
+    try {
+      // Ensure the directory exists
+      const envDir = path.dirname(ENV_FILE_PATH);
+      try {
+        await fs.access(envDir);
+      } catch {
+        console.log(`Creating directory: ${envDir}`);
+        await fs.mkdir(envDir, { recursive: true });
+      }
+      
+      await fs.writeFile(ENV_FILE_PATH, envContent, { mode: 0o666 });
+      console.log(`Configuration saved to: ${ENV_FILE_PATH}`);
+      
+      // Verify the file was written
+      const stats = await fs.stat(ENV_FILE_PATH);
+      console.log(`File size: ${stats.size} bytes`);
+    } catch (writeError: any) {
+      console.error('Error writing .env file:', writeError);
+      console.error('ENV_FILE_PATH:', ENV_FILE_PATH);
+      console.error('Is Docker:', isDocker);
+      console.error('PROJECT_ROOT:', PROJECT_ROOT);
+      throw writeError;
+    }
     
     res.json({ success: true });
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error saving config:', error);
-    res.status(500).json({ message: 'Failed to save configuration' });
+    console.error('Stack trace:', error.stack);
+    res.status(500).json({ message: `Failed to save configuration: ${error.message}` });
   }
 });
 
@@ -287,9 +309,18 @@ app.post('/api/services/stop', async (req, res) => {
 });
 
 // Start server
-app.listen(PORT, '0.0.0.0', () => {
+app.listen(PORT, '0.0.0.0', async () => {
   console.log(`Configuration UI running on http://0.0.0.0:${PORT}`);
   console.log(`Access it at http://${getServerIP()}:${PORT}`);
+  console.log(`Environment: ${isDocker ? 'Docker' : 'Local'}`);
   console.log(`Project root: ${PROJECT_ROOT}`);
   console.log(`ENV file path: ${ENV_FILE_PATH}`);
+  
+  // Check write permissions
+  try {
+    await fs.access(PROJECT_ROOT, fs.constants.W_OK);
+    console.log(`Write permission OK for: ${PROJECT_ROOT}`);
+  } catch {
+    console.error(`NO write permission for: ${PROJECT_ROOT}`);
+  }
 });
