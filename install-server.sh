@@ -169,8 +169,6 @@ print_info "Server IP: $SERVER_IP"
 
 # Create docker-compose for config UI only
 cat > $INSTALL_DIR/docker-compose.config.yml << EOF
-version: '3.8'
-
 services:
   config-ui:
     build: ./server/config-ui

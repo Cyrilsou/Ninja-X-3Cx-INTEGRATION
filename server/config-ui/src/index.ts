@@ -361,7 +361,7 @@ app.listen(PORT, '0.0.0.0', async () => {
   
   // Check write permissions
   try {
-    await fs.access(PROJECT_ROOT, fs.constants.W_OK);
+    await fs.access(PROJECT_ROOT, 2); // fs.constants.W_OK = 2
     console.log(`Write permission OK for: ${PROJECT_ROOT}`);
   } catch {
     console.error(`NO write permission for: ${PROJECT_ROOT}`);
