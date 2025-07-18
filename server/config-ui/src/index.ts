@@ -16,7 +16,18 @@ const isDocker = process.env.DOCKER_ENV === 'true' || existsSync('/.dockerenv');
 const PROJECT_ROOT = isDocker ? '/project' : path.resolve(__dirname, '..', '..', '..');
 const ENV_FILE_PATH = path.join(PROJECT_ROOT, '.env');
 
-app.use(cors());
+// Logging middleware
+app.use((req, res, next) => {
+  console.log(`${new Date().toISOString()} - ${req.method} ${req.path}`);
+  next();
+});
+
+app.use(cors({
+  origin: '*',
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
+  credentials: true
+}));
 app.use(express.json());
 app.use(express.static(path.join(__dirname, '../public')));
 
@@ -79,6 +90,11 @@ function getServerIP(): string {
   return '127.0.0.1';
 }
 
+// Health check route
+app.get('/health', (req, res) => {
+  res.json({ status: 'ok', timestamp: new Date().toISOString() });
+});
+
 // Routes
 app.get('/api/server-info', (req, res) => {
   const ip = getServerIP();
@@ -140,7 +156,18 @@ app.post('/api/config', async (req, res) => {
     
     // Write .env file
     try {
-      // Ensure the directory exists
+      // Check if .env exists and is a directory (Docker volume issue)
+      try {
+        const stats = await fs.stat(ENV_FILE_PATH);
+        if (stats.isDirectory()) {
+          console.log(`Removing directory at ${ENV_FILE_PATH}`);
+          await fs.rmdir(ENV_FILE_PATH);
+        }
+      } catch {
+        // File doesn't exist, which is fine
+      }
+      
+      // Ensure the parent directory exists
       const envDir = path.dirname(ENV_FILE_PATH);
       try {
         await fs.access(envDir);

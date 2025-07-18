@@ -268,6 +268,12 @@ chmod +x $INSTALL_DIR/logs.sh
 print_info "Building configuration UI..."
 cd $INSTALL_DIR
 
+# Clean up any existing .env directory (Docker volume issue)
+if [ -d "$INSTALL_DIR/.env" ]; then
+    print_info "Removing existing .env directory..."
+    rm -rf "$INSTALL_DIR/.env"
+fi
+
 # Check if config-ui directory exists
 if [ ! -d "$INSTALL_DIR/server/config-ui" ]; then
     print_error "Configuration UI directory not found at $INSTALL_DIR/server/config-ui"
