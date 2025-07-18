@@ -14,7 +14,7 @@ const loginSchema = Joi.object({
 });
 
 // Agent login endpoint
-router.post('/agent/login', async (req: Request, res: Response) => {
+router.post('/agent/login', async (req: Request, res: Response): Promise<void> => {
   try {
     const { error, value } = loginSchema.validate(req.body);
     if (error) {
@@ -74,7 +74,7 @@ router.post('/agent/login', async (req: Request, res: Response) => {
 });
 
 // Verify token endpoint
-router.get('/verify', async (req: Request, res: Response) => {
+router.get('/verify', async (req: Request, res: Response): Promise<void> => {
   try {
     const token = req.headers.authorization?.replace('Bearer ', '');
     

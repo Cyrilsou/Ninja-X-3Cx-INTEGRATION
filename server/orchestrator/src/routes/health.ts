@@ -23,7 +23,7 @@ interface ServiceStatus {
   message?: string;
 }
 
-router.get('/', async (req: Request, res: Response) => {
+router.get('/', async (_req: Request, res: Response) => {
   const startTime = Date.now();
   const health: HealthStatus = {
     status: 'healthy',
@@ -72,15 +72,15 @@ router.get('/', async (req: Request, res: Response) => {
   }
 });
 
-router.get('/live', (req: Request, res: Response) => {
+router.get('/live', (_req: Request, res: Response) => {
   res.status(200).send('OK');
 });
 
-router.get('/ready', async (req: Request, res: Response) => {
+router.get('/ready', async (_req: Request, res: Response) => {
   try {
     // Quick check if main services are ready
     await DatabaseService.getCall('ready-check');
-    const stats = await QueueService.getQueueStats();
+    const _stats = await QueueService.getQueueStats();
     
     res.status(200).json({
       ready: true,

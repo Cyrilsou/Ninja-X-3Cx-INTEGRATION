@@ -3,6 +3,18 @@ import { config } from '../config';
 import { logger } from '../utils/logger';
 import { DraftTicketData } from '../types/draft.types';
 
+export interface Agent {
+  id: number;
+  extension: string;
+  agent_name?: string;
+  jwt_token_hash: string;
+  ip_address?: string;
+  user_agent?: string;
+  created_at: Date;
+  last_activity: Date;
+  expires_at: Date;
+}
+
 export class DatabaseService {
   private static pool: Pool;
 
@@ -136,6 +148,19 @@ export class DatabaseService {
       LIMIT 1
     `;
     const result = await this.pool.query(query, [extension]);
+    return result.rows[0];
+  }
+
+  static async query(text: string, params?: any[]): Promise<any> {
+    const result = await this.pool.query(text, params);
+    return result;
+  }
+
+  static async updateCall(callId: string, updates: any): Promise<any> {
+    const fields = Object.keys(updates).map((key, index) => `${key} = $${index + 2}`).join(', ');
+    const query = `UPDATE integration.calls SET ${fields} WHERE call_id = $1 RETURNING *`;
+    const values = [callId, ...Object.values(updates)];
+    const result = await this.pool.query(query, values);
     return result.rows[0];
   }
 

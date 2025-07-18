@@ -10,8 +10,15 @@ export interface TicketDraftJob {
   callData: any;
 }
 
+export interface TranscriptionJob {
+  callId: string;
+  audioPath: string;
+  callData: any;
+}
+
 export class QueueService {
   private static draftQueue: Bull.Queue<TicketDraftJob>;
+  private static transcriptionQueue: Bull.Queue<TranscriptionJob>;
   private static redis: Redis;
   private static draftProcessor: DraftProcessor;
 
@@ -26,6 +33,19 @@ export class QueueService {
 
     // Create draft queue
     this.draftQueue = new Bull('ticket-draft', config.REDIS_URL, {
+      defaultJobOptions: {
+        attempts: 3,
+        backoff: {
+          type: 'exponential',
+          delay: 2000,
+        },
+        removeOnComplete: true,
+        removeOnFail: false,
+      },
+    });
+
+    // Create transcription queue
+    this.transcriptionQueue = new Bull('transcription', config.REDIS_URL, {
       defaultJobOptions: {
         attempts: 3,
         backoff: {
@@ -63,7 +83,12 @@ export class QueueService {
 
   static async close(): Promise<void> {
     await this.draftQueue.close();
+    await this.transcriptionQueue.close();
     await this.redis.quit();
+  }
+
+  static async addTranscriptionJob(jobData: TranscriptionJob): Promise<Bull.Job<TranscriptionJob>> {
+    return await this.transcriptionQueue.add(jobData);
   }
 
   private static setupQueueMonitoring(): void {

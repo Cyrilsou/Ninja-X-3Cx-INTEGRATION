@@ -8,16 +8,23 @@ import { QueueService } from '../services/queue';
 import { logger } from '../utils/logger';
 import { authMiddleware } from '../middleware/auth';
 
+// Fonction pour chiffrer les fichiers audio
+async function encryptAudioFile(filePath: string): Promise<string> {
+  // Pour l'instant, on retourne simplement le chemin
+  // Dans une version de production, implémenter le chiffrement réel
+  return filePath;
+}
+
 const router = Router();
 
 // Configuration multer pour l'upload
 const storage = multer.diskStorage({
-  destination: async (req, file, cb) => {
+  destination: async (_req, _file, cb) => {
     const uploadDir = process.env.UPLOAD_PATH || '/tmp/uploads';
     await fs.mkdir(uploadDir, { recursive: true });
     cb(null, uploadDir);
   },
-  filename: (req, file, cb) => {
+  filename: (_req, file, cb) => {
     const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
     cb(null, `recording-${uniqueSuffix}${path.extname(file.originalname)}`);
   }
@@ -28,7 +35,7 @@ const upload = multer({
   limits: {
     fileSize: 100 * 1024 * 1024 // 100MB max
   },
-  fileFilter: (req, file, cb) => {
+  fileFilter: (_req, file, cb) => {
     // Accept audio files only
     const allowedTypes = ['audio/wav', 'audio/wave', 'audio/x-wav', 'audio/mpeg', 'audio/mp3'];
     if (allowedTypes.includes(file.mimetype)) {
@@ -43,7 +50,7 @@ const upload = multer({
 router.post('/api/upload-recording', 
   authMiddleware, 
   upload.single('audio'), 
-  async (req, res) => {
+  async (req: any, res) => {
     try {
       if (!req.file) {
         return res.status(400).json({ error: 'Aucun fichier audio reçu' });
@@ -147,7 +154,7 @@ async function encryptAudioFile(filepath: string): Promise<string> {
 }
 
 // Route pour vérifier le statut d'une transcription
-router.get('/api/transcription-status/:callId', authMiddleware, async (req, res) => {
+router.get('/api/transcription-status/:callId', authMiddleware, async (req: any, res): Promise<void> => {
   try {
     const { callId } = req.params;
     
@@ -155,11 +162,12 @@ router.get('/api/transcription-status/:callId', authMiddleware, async (req, res)
       `SELECT id, status, transcription_text, transcription_summary 
        FROM calls 
        WHERE id = $1 AND extension = $2`,
-      [callId, req.agent.extension]
+      [callId, req.agent?.extension]
     );
 
     if (result.rows.length === 0) {
-      return res.status(404).json({ error: 'Appel non trouvé' });
+      res.status(404).json({ error: 'Appel non trouvé' });
+      return;
     }
 
     const call = result.rows[0];

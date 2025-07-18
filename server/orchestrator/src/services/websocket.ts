@@ -163,7 +163,7 @@ export class WebSocketService {
 
     switch (message.type) {
       case 'ping':
-        this.sendToClient(client, { type: 'pong' });
+        this.sendToClient(client, { type: 'pong', data: {} });
         break;
 
       case 'confirmDraft':
