@@ -14,14 +14,17 @@ const joi_1 = __importDefault(require("joi"));
 const os_1 = __importDefault(require("os"));
 const app = (0, express_1.default)();
 const PORT = 8080;
-const ENV_FILE_PATH = path_1.default.join(__dirname, '../../../.env');
+// In production, __dirname is in dist/, so we need to go up 3 levels to reach project root
+// dist/ -> config-ui/ -> server/ -> Projet/
+const PROJECT_ROOT = path_1.default.resolve(__dirname, '..', '..', '..');
+const ENV_FILE_PATH = path_1.default.join(PROJECT_ROOT, '.env');
 app.use((0, cors_1.default)());
 app.use(express_1.default.json());
 app.use(express_1.default.static(path_1.default.join(__dirname, '../public')));
 // Serve markdown documentation files
 app.get('/*.md', async (req, res) => {
     const filename = req.path.slice(1); // Remove leading slash
-    const projectRoot = path_1.default.join(__dirname, '../../../');
+    const projectRoot = PROJECT_ROOT;
     const filePath = path_1.default.join(projectRoot, filename);
     // Security: prevent directory traversal
     if (!filePath.startsWith(projectRoot) || filePath.includes('..')) {
@@ -126,6 +129,7 @@ app.post('/api/config', async (req, res) => {
             .join('\n');
         // Write .env file
         await promises_1.default.writeFile(ENV_FILE_PATH, envContent);
+        console.log(`Configuration saved to: ${ENV_FILE_PATH}`);
         res.json({ success: true });
     }
     catch (error) {
@@ -213,26 +217,38 @@ app.post('/api/services/start', async (req, res) => {
         // Check if .env exists
         try {
             await promises_1.default.access(ENV_FILE_PATH);
+            console.log(`ENV file found at: ${ENV_FILE_PATH}`);
         }
         catch {
+            console.error(`ENV file not found at: ${ENV_FILE_PATH}`);
             return res.status(400).json({ message: 'Configuration not found. Please save configuration first.' });
         }
         // Start services using the correct docker-compose file
-        const projectDir = path_1.default.join(__dirname, '../../..');
-        (0, child_process_1.execSync)(`cd ${projectDir} && docker-compose -f docker-compose.yml up -d`, {
+        const projectDir = PROJECT_ROOT;
+        console.log(`Starting services from directory: ${projectDir}`);
+        // Check if docker-compose.yml exists
+        const dockerComposePath = path_1.default.join(projectDir, 'docker-compose.yml');
+        if (!(0, fs_1.existsSync)(dockerComposePath)) {
+            console.error(`docker-compose.yml not found at: ${dockerComposePath}`);
+            return res.status(500).json({ message: 'docker-compose.yml not found in project root' });
+        }
+        const result = (0, child_process_1.execSync)(`docker-compose -f docker-compose.yml up -d`, {
             stdio: 'pipe',
-            cwd: projectDir
+            cwd: projectDir,
+            encoding: 'utf8'
         });
+        console.log('Docker compose output:', result);
         res.json({ success: true });
     }
     catch (error) {
         console.error('Error starting services:', error);
-        res.status(500).json({ message: 'Failed to start services' });
+        console.error('Error output:', error.stderr?.toString());
+        res.status(500).json({ message: `Failed to start services: ${error.message}` });
     }
 });
 app.post('/api/services/stop', async (req, res) => {
     try {
-        const projectDir = path_1.default.join(__dirname, '../../..');
+        const projectDir = PROJECT_ROOT;
         (0, child_process_1.execSync)(`cd ${projectDir} && docker-compose -f docker-compose.yml down`, {
             stdio: 'pipe',
             cwd: projectDir
@@ -248,4 +264,6 @@ app.post('/api/services/stop', async (req, res) => {
 app.listen(PORT, '0.0.0.0', () => {
     console.log(`Configuration UI running on http://0.0.0.0:${PORT}`);
     console.log(`Access it at http://${getServerIP()}:${PORT}`);
+    console.log(`Project root: ${PROJECT_ROOT}`);
+    console.log(`ENV file path: ${ENV_FILE_PATH}`);
 });
